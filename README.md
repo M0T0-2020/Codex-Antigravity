@@ -1,211 +1,214 @@
 # Codex-Antigravity (`codex-antigravity`)
 
-**Codex-Antigravity** は、**Coding Agent (Codex 等)** と **Google Antigravity CLI (`agy`)** を連携させ、**「コードベースの現状把握・影響調査」**、**「テスト実行＆AI障害トリアージ」**、および**「軽量な外部ドキュメント調査」**を安全・自律的に委譲するためのプラグイン＆ツールキットです。
+[English](README.md) | [日本語](README.ja.md)
+
+**Codex-Antigravity** is a plugin and toolkit that bridges **Coding Agents (such as OpenAI Codex)** and the **Google Antigravity CLI (`agy`)**. It safely and autonomously delegates **"codebase reconnaissance & impact analysis"**, **"test execution & AI failure triage"**, and **"lightweight external documentation research"**.
 
 ```text
 Coding Agent (Codex)
         │
-        ├── ① コード実装・リファクタ・修正 ──────► Codex 自身が担当（書き込み権限）
+        ├── ① Code Implementation, Refactoring & Fixes ──► Handled by Codex itself (Write permissions)
         │
-        ├── ② コードベース現状把握 & 外部調査 ───► Antigravity Scout (Read-only)
+        ├── ② Codebase Reconnaissance & Research ────────► Antigravity Scout (Read-only)
         │        │
         │        ├── /codebase [status|impact|audit]
         │        └── scripts/antigravity_delegate.py --dir . --type codebase
-        │                 │ - 高速ローカルスキャン (言語/スタック/Git状態/構成)
-        │                 │ - agy --add-dir による安全な読み取り専用調査
+        │                 │ - High-speed local scan (languages/stack/Git status/tree)
+        │                 │ - Safe read-only inspection via agy --add-dir
         │                 ▼
-        │        構造化アーキテクチャレポート (JSON)
+        │        Structured Architecture Report (JSON)
         │
-        └── ③ テスト実行 & 障害トリアージ ────────► Test Delegator + Antigravity QA
+        └── ③ Test Execution & Failure Triage ───────────► Test Delegator + Antigravity QA
                  │
                  ├── /test [cmd]
-                 └── scripts/test_delegate.py --dir .
-                          │ - テスト自動実行 & メトリクス集計 (passed/failed)
-                          │ - 失敗時: スタックトレースから根本原因 & 修正指針をAI診断
+                 └── scripts/test_runner.py --dir .
+                          │ - Automated test execution & metrics aggregation (passed/failed)
+                          │ - On failure: AI diagnoses root causes & suggested fixes from tracebacks
                           ▼
-                 構造化テスト & 診断結果 (JSON) ──► Codex (原因を把握し即座に修正)
+                 Structured Test & Diagnosis Report (JSON) ──► Codex (identifies cause and fixes immediately)
 ```
 
 ---
 
-## 主な特徴
+## Key Features
 
-- 🚀 **Coding Agent 向け責務の最適分離**:
-  - **Codex (Lead Engineer)**: 実装コードの編集、リファクタリング、Gitコミット、最終設計判断。
-  - **Antigravity (Scout & QA)**: コードベース構造調査、依存/影響分析、テスト実行＆失敗トリアージ、外部ドキュメント検索。
-- 🔍 **コードベース現状把握 (Codebase Reconnaissance)**:
-  - ゼロ外部依存の高速ローカルスキャナー (`scripts/codebase_analyzer.py`) が言語・フレームワーク・Git状態・ツリー構造を瞬時に抽出し、AIプロンプトに統合。
-- 🧪 **テスト委任＆AI障害トリアージ (Test Delegation & Failure Triage)**:
-  - pytest, unittest, cargo test, npm/vitest, go test などを自動検知・実行。
-  - テスト失敗時は膨大なスタックトレースをCoding Agentのコンテキストに垂れ流さず、AIが根本原因（Root Cause）と具体的な修正指針（Suggested Fix）を構造化報告。
-- 🛡️ **安全な読み取り専用制約**:
-  - 調査・スカウトタスクではプロンプトレベルおよび引数レベルでファイル変更やGit書き込みを厳格に禁止。
-- ⚡ **ゼロ外部依存 (Zero-dependency)**:
-  - Python 3.9+ の標準ライブラリのみで完全動作。
-- 📦 **豊富な連携方式**:
-  - **CLI スクリプト**: `scripts/antigravity_delegate.py`, `scripts/test_delegate.py`
+- 🚀 **Optimal Division of Responsibilities for Coding Agents**:
+  - **Codex (Lead Engineer)**: Production code modifications, refactoring, Git commits, and final architectural decisions.
+  - **Antigravity (Scout & QA)**: Codebase structure exploration, dependency/impact analysis, test execution & failure triage, and external documentation lookup.
+- 🔍 **Codebase Reconnaissance**:
+  - Zero-dependency, ultra-fast local scanner (`scripts/codebase_analyzer.py`) extracts languages, frameworks, Git status, and directory trees in under 100ms, seamlessly integrated into AI prompt context.
+- 🧪 **Test Delegation & AI Failure Triage**:
+  - Automatically detects and runs pytest, unittest, cargo test, npm/vitest, go test, and more.
+  - When tests fail, instead of flooding the Coding Agent's context window with massive stack traces, AI provides structured root cause analysis and concrete suggested fixes.
+- 🛡️ **Strict Read-Only Safety Guarantees**:
+  - Research and scout tasks strictly prohibit file modifications and Git write operations via prompt-level guardrails and CLI parameter enforcement.
+- ⚡ **Zero External Dependencies**:
+  - Fully functional using only the Python 3.9+ standard library.
+- 📦 **Rich Integration Options**:
+  - **CLI Scripts**: `scripts/antigravity_delegate.py`, `scripts/test_runner.py`
   - **Codex Plugin / Skills**: `skills/antigravity-research`, `skills/research-routing`, `skills/test-delegation`
   - **Slash Commands**: `/codebase`, `/test`, `/research`, `/research-deep`
-  - **MCP サーバー**: `mcp/server.py` (JSON-RPC 2.0 stdio)
+  - **MCP Server**: `mcp/server.py` (JSON-RPC 2.0 stdio)
 
 ---
 
-## ⚡ 30秒 Quick Start
+## ⚡ 30-Second Quick Start
 
-最短で導入して使い始めるためのクイックスタートです:
+Get up and running in 30 seconds:
 
 ```bash
-# 1. リポジトリのクローン & 移動
+# 1. Clone the repository & navigate into it
 git clone git@github.com:M0T0-2020/Codex-Antigravity.git
 cd Codex-Antigravity
 
-# 2. 環境診断 (agy CLI のインストール状態を確認)
+# 2. Run environment diagnostics (verifies agy CLI installation and authentication)
 python3 scripts/check_antigravity.py
 
-# 3. Codex CLI プラグインとしてワンコマンド追加
+# 3. Add as a Codex CLI plugin with a single command
 codex plugin marketplace add .
 codex plugin add codex-antigravity@codex-antigravity-market
 ```
 
-登録完了後、Codex チャット上で直ちに以下のコマンドを利用できます:
+After registration, you can immediately use the following commands in your Codex chat interface:
 
 ```text
-/research ONNX Runtime 1.18 の最新変更点と注意点
+/research Latest changes and gotchas in ONNX Runtime 1.18
 /codebase status
 /test
 ```
 
 ---
 
-## ディレクトリ構成
+## Directory Structure
 
 ```text
 Codex-Antigravity/
 ├── .agents/
 │   └── plugins/
-│       └── marketplace.json           # Codex プラグインマーケットプレイス定義
+│       └── marketplace.json           # Codex plugin marketplace definition
 │
 ├── .codex-plugin/
-│   └── plugin.json                    # Codex プラグインマニフェスト
+│   └── plugin.json                    # Codex plugin manifest
 │
 ├── .github/
 │   └── workflows/
-│       └── test.yml                   # CI 自動テストワークフロー (Python 3.9〜3.13)
+│       └── test.yml                   # CI automated test workflow (Python 3.9–3.13)
 │
-├── .mcp.json                          # MCP サーバー構成定義
+├── .mcp.json                          # MCP server configuration definition
 │
 ├── agents/
-│   └── research-router.md             # ルーティングサブエージェント定義
+│   └── research-router.md             # Routing sub-agent prompt definition
 │
 ├── skills/
 │   ├── antigravity-research/
-│   │   └── SKILL.md                   # 調査委譲スキル（コードベース調査対応）
+│   │   └── SKILL.md                   # Research delegation skill (with codebase inspection)
 │   ├── research-routing/
-│   │   └── SKILL.md                   # Coding Agent向けルーティング基準
+│   │   └── SKILL.md                   # Routing guidelines for Coding Agents
 │   └── test-delegation/
-│       └── SKILL.md                   # テスト委任＆AI障害トリアージスキル
+│       └── SKILL.md                   # Test delegation & AI failure triage skill
 │
 ├── commands/
-│   ├── codebase.md                    # /codebase コマンド定義
-│   ├── test.md                        # /test コマンド定義
-│   ├── research.md                    # /research コマンド定義
-│   └── research-deep.md               # /research-deep コマンド定義
+│   ├── codebase.md                    # /codebase command definition
+│   ├── test.md                        # /test command definition
+│   ├── research.md                    # /research command definition
+│   └── research-deep.md               # /research-deep command definition
 │
 ├── config/
-│   └── defaults.toml                  # 設定ファイル (モデルTier, テスト, 安全ポリシー等)
+│   └── defaults.toml                  # Default settings (model tiers, test, safety policies)
 │
 ├── mcp/
 │   ├── __init__.py
-│   └── server.py                      # MCP stdio サーバー (tools/call)
+│   └── server.py                      # MCP stdio server (tools/call)
 │
 ├── scripts/
 │   ├── __init__.py
-│   ├── safety.py                      # 安全ポリシー層 (境界検査, command検証, envサニタイズ)
-│   ├── router.py                      # Policy-as-Code ルーター (変更要求遮断)
-│   ├── antigravity_delegate.py        # コア委譲スクリプト (プロンプト防御, claims抽出, sandbox)
-│   ├── codebase_analyzer.py           # 高速ローカルプロジェクトスキャナー (<100ms)
-│   ├── test_runner.py                 # テスト実行＆AI障害トリアージ (shell=False, process-group kill)
-│   ├── check_antigravity.py           # 環境診断スクリプト
-│   ├── config_loader.py               # TOML 設定ローダー (tomllib優先)
-│   └── models.py                      # 動的モデルTier解決 (flash/pro/claude)
+│   ├── safety.py                      # Safety policy layer (boundary check, command validation, env sanitization)
+│   ├── router.py                      # Policy-as-Code router (intercepts mutation tasks)
+│   ├── antigravity_delegate.py        # Core delegation script (prompt defense, claims extraction, sandbox)
+│   ├── codebase_analyzer.py           # Fast local project scanner (<100ms)
+│   ├── test_runner.py                 # Test runner & AI triage (shell=False, process-group kill)
+│   ├── check_antigravity.py           # Environment diagnostics script
+│   ├── config_loader.py               # TOML configuration loader (prefers tomllib)
+│   └── models.py                      # Dynamic model tier resolution (flash/pro/claude)
 │
 ├── tests/
 │   ├── __init__.py
-│   ├── test_safety.py                 # 安全ポリシー＆インジェクション拒絶テスト
-│   ├── test_router.py                 # Policy-as-Code ルーターテスト
-│   ├── test_codebase_analyzer.py      # コードベーススキャナーテスト
-│   ├── test_test_runner.py            # テスト実行＆障害診断テスト
-│   ├── test_delegate.py               # 委譲・プロンプト・モックテスト
-│   ├── test_output_parser.py          # 構造化パーステスト
-│   ├── test_timeout.py                # タイムアウト制御テスト
-│   ├── test_routing.py                # 設定読み込み・ルーティングテスト
-│   └── test_mcp_server.py             # MCP サーバーテスト
+│   ├── test_safety.py                 # Safety policy & prompt injection rejection tests
+│   ├── test_router.py                 # Policy-as-Code router tests
+│   ├── test_codebase_analyzer.py      # Codebase scanner tests
+│   ├── test_test_runner.py            # Test execution & failure diagnosis tests
+│   ├── test_delegate.py               # Delegation, prompt & mock tests
+│   ├── test_output_parser.py          # Structured parsing tests
+│   ├── test_timeout.py                # Timeout handling tests
+│   ├── test_routing.py                # Config loading & routing tests
+│   └── test_mcp_server.py             # MCP server tests
 │
 ├── pyproject.toml
-└── README.md
+├── README.ja.md                       # Japanese documentation
+└── README.md                          # English documentation (default)
 ```
 
 ---
 
-## Codex CLI へのインストールとセットアップ手順
+## Installation & Setup for Codex CLI
 
-Codex CLI (`codex`) から Codex-Antigravity を利用するための詳細な導入手順です。
-環境や用途に合わせて、以下の **3 つの方式** から選択できます。
+Detailed setup instructions for using Codex-Antigravity with the Codex CLI (`codex`).
+You can choose from **3 integration methods** depending on your workflow:
 
-| 方式 | 特徴 | 推奨ユースケース |
+| Method | Characteristics | Recommended Use Case |
 | :--- | :--- | :--- |
-| **方法 A: Codex 公式プラグインとしてインストール** | コマンド一発でスキル・コマンド・MCP を一括導入 | **最も推奨**。Codex CLI 全体で恒常的に利用したい場合 |
-| **方法 B: Codex MCP サーバーとして登録** | Codex が調査・テスト診断ツールを自律的に Function Call | MCP ツールとして直接モデルに連携させたい場合 |
-| **方法 C: 特定プロジェクト内への直接配置** | グローバル設定を変更せずリポジトリ配下のみで動作 | 既存の特定プロジェクトのみで試したい場合 |
+| **Method A: Install as Official Codex Plugin** | One-command installation of skills, slash commands, and MCP | **Most Recommended**. For persistent use across all Codex CLI sessions |
+| **Method B: Register as Codex MCP Server** | Enables Codex to autonomously invoke research & test diagnosis tools | When you want the LLM to call tools directly via Function Calling |
+| **Method C: Workspace-Local Placement** | Works strictly within a specific repository without touching global configurations | When testing within a single project repository |
 
 ---
 
-### ステップ 0: 前提条件の確認と事前準備 (Prerequisites)
+### Step 0: Prerequisites & Preparation
 
-インストール前に、ターミナルで以下の前提条件を確認してください。
+Before installation, verify the following prerequisites in your terminal:
 
-#### 1. Google Antigravity CLI (`agy`) の確認 & 初回認証
-Antigravity CLI がインストールされ、認証が完了しているか確認します:
+#### 1. Google Antigravity CLI (`agy`) Verification & Initial Authentication
+Ensure that the Antigravity CLI is installed and authenticated:
 
 ```bash
-# バージョン確認
+# Check version
 agy --version
 ```
 
 > [!IMPORTANT]
-> **初回認証・プロジェクト信頼の確認**:
-> まだ一度も `agy` を起動していない場合は、ターミナルで単体起動して認証を完了させてください:
+> **Initial Authentication & Workspace Trust**:
+> If you have never launched `agy`, start it once manually in your terminal to complete initial authentication:
 > ```bash
 > agy
 > ```
-> 画面に `Do you trust the contents of this project?` と表示されたら、`Yes, I trust this folder` を選択して Enter を押します。Google アカウントでのログインおよびモデルクォータ画面が表示されれば準備完了です（Esc キーで終了できます）。
+> When prompted with `Do you trust the contents of this project?`, select `Yes, I trust this folder` and press Enter. Once the Google account sign-in and model quota screen appears, setup is complete (press Esc to exit).
 
-#### 2. OpenAI Codex CLI (`codex`) の確認
-Codex CLI が利用可能か確認します:
+#### 2. OpenAI Codex CLI (`codex`) Verification
+Ensure that the Codex CLI is available:
 
 ```bash
-# バージョン確認
+# Check version
 codex --version
 
-# 健全性チェック (任意)
+# Health check (optional)
 codex doctor
 ```
 
-#### 3. Python 3.9+ の確認
-本ツールは外部ライブラリを必要とせず、Python 標準ライブラリのみで動作します:
+#### 3. Python 3.9+ Verification
+This tool requires no third-party libraries and runs entirely on the Python standard library:
 
 ```bash
 python3 --version
 ```
 
-#### 4. 環境診断スクリプトの実行
-リポジトリ内の診断スクリプトを実行し、`agy` との疎通を確認します:
+#### 4. Run Environment Diagnostics Script
+Run the diagnostics script included in the repository to verify connectivity with `agy`:
 
 ```bash
 python3 scripts/check_antigravity.py
 ```
 
-正常に検知された場合の出力例:
+Example output on success:
 ```text
 ==================================================
 Antigravity Environment Diagnostics
@@ -223,49 +226,49 @@ Diagnostics Result    : SUCCESS (Ready for delegation)
 
 ---
 
-### 方法 A: Codex 公式プラグインとしてインストール（推奨）
+### Method A: Install as Official Codex Plugin (Recommended)
 
-Codex CLI の公式プラグイン管理システム（Marketplace 機能）を利用してインストールします。
-プラグインマニフェスト (`.codex-plugin/plugin.json`)、マーケットプレイス定義 (`.agents/plugins/marketplace.json`)、および MCP 設定 (`.mcp.json`) が自動的に Codex に登録されます。
+Install using the official Codex CLI plugin management system (Marketplace feature).
+The plugin manifest (`.codex-plugin/plugin.json`), marketplace definition (`.agents/plugins/marketplace.json`), and MCP configuration (`.mcp.json`) are registered with Codex automatically.
 
-#### 1. マーケットプレイスの追加
-Codex に本リポジトリをマーケットプレイスソースとして登録します:
+#### 1. Add Marketplace
+Register this repository as a marketplace source in Codex:
 
 ```bash
-# Codex-Antigravity ディレクトリ外から実行する場合 (絶対パスを指定)
+# If running outside the Codex-Antigravity directory (specify absolute path)
 codex plugin marketplace add /path/to/Codex-Antigravity
 
-# Codex-Antigravity ディレクトリ直下にいる場合
+# If running directly inside the Codex-Antigravity directory
 codex plugin marketplace add .
 ```
 
-実行結果:
+Output:
 ```text
 Added marketplace `codex-antigravity-market` from /path/to/Codex-Antigravity.
 Installed marketplace root: /path/to/Codex-Antigravity
 ```
 
-#### 2. プラグインのインストール
-マーケットプレイスから `codex-antigravity` プラグインを追加します:
+#### 2. Install Plugin
+Add the `codex-antigravity` plugin from the marketplace:
 
 ```bash
 codex plugin add codex-antigravity@codex-antigravity-market
 ```
 
-実行結果:
+Output:
 ```text
 Added plugin `codex-antigravity` from marketplace `codex-antigravity-market`.
 Installed plugin root: ~/.codex/plugins/cache/codex-antigravity-market/codex-antigravity/1.0.0
 ```
 
-#### 3. インストール状態の確認
-プラグイン一覧を表示し、有効化されているか確認します:
+#### 3. Verify Installation
+List plugins to confirm it is enabled:
 
 ```bash
 codex plugin list
 ```
 
-出力例:
+Example output:
 ```text
 Marketplace `codex-antigravity-market`
 /path/to/Codex-Antigravity/.agents/plugins/marketplace.json
@@ -273,220 +276,220 @@ Marketplace `codex-antigravity-market`
 PLUGIN                                      STATUS              VERSION  PATH
 codex-antigravity@codex-antigravity-market  installed, enabled  1.0.0    /path/to/Codex-Antigravity
 ```
-`installed, enabled` と表示されていればセットアップ完了です！
+If `installed, enabled` is displayed, setup is complete!
 
-#### 4. プラグインの更新・アンインストール
+#### 4. Upgrading & Removing Plugin
 ```bash
-# プラグインの最新化
+# Upgrade plugin to the latest version
 codex plugin marketplace upgrade
 
-# プラグインの無効化・削除
+# Disable and remove plugin
 codex plugin remove codex-antigravity@codex-antigravity-market
 codex plugin marketplace remove codex-antigravity-market
 ```
 
 ---
 
-### 方法 B: Codex MCP サーバーとして登録（自律ツール呼び出し）
+### Method B: Register as Codex MCP Server (Autonomous Tool Calling)
 
-Codex の **Model Context Protocol (MCP)** クライアント機能を利用し、Codex の推論ループ内から Antigravity の各機能（調査、コードベース分析、テスト診断など）を関数として直接呼び出せるように登録します。
+Leverage Codex's **Model Context Protocol (MCP)** client capability so Codex can autonomously call Antigravity features (research, codebase analysis, test diagnosis) as function tools during reasoning.
 
-#### 1. `codex mcp add` コマンドで追加
-ターミナルから以下のコマンドを実行します:
+#### 1. Add via `codex mcp add` Command
+Run the following command in your terminal:
 
 ```bash
-# ※ 必ず server.py の絶対パスを指定してください
-codex mcp add codex-antigravity -- python3 /絶対パス/to/Codex-Antigravity/mcp/server.py
+# Note: Always specify the absolute path to server.py
+codex mcp add codex-antigravity -- python3 /absolute/path/to/Codex-Antigravity/mcp/server.py
 ```
 
 > [!TIP]
-> 現在の作業ディレクトリが `Codex-Antigravity` の場合、以下のように指定できます:
+> If your current working directory is `Codex-Antigravity`, you can specify:
 > ```bash
 > codex mcp add codex-antigravity -- python3 "$(pwd)/mcp/server.py"
 > ```
 
-実行結果:
+Output:
 ```text
 Added global MCP server 'codex-antigravity'.
 ```
 
-#### または `~/.codex/config.toml` に直接記述する場合:
-お好みのエディタで `~/.codex/config.toml` を開き、以下のセクションを追記します:
+#### Or Configure Directly in `~/.codex/config.toml`:
+Open `~/.codex/config.toml` in your editor of choice and append the following section:
 
 ```toml
 [mcp_servers.codex-antigravity]
 command = "python3"
-args = ["/絶対パス/to/Codex-Antigravity/mcp/server.py"]
+args = ["/absolute/path/to/Codex-Antigravity/mcp/server.py"]
 ```
 
-#### 2. 登録確認
-MCP サーバーが正常に登録され、有効化されているか確認します:
+#### 2. Verify Registration
+Verify that the MCP server is registered and enabled:
 
 ```bash
 codex mcp list
 ```
 
-出力例:
+Example output:
 ```text
 Name               Command  Args                                      Env  Cwd  Status   Auth       
 codex-antigravity  python3  /path/to/Codex-Antigravity/mcp/server.py  -    -    enabled  Unsupported
 ```
-`Status: enabled` になっていれば完了です。
+If `Status: enabled` is shown, the registration is active.
 
-#### 3. MCP サーバーの削除
+#### 3. Remove MCP Server
 ```bash
 codex mcp remove codex-antigravity
 ```
 
 ---
 
-### 方法 C: 特定プロジェクト内への直接配置（ワークスペースローカル）
+### Method C: Workspace-Local Placement (Project-Level)
 
-Codex CLI のグローバル設定を変更せず、特定の開発プロジェクト単体で Antigravity 連携機能を利用したい場合の手順です。
+Use this method when you want to use Antigravity integration within a single specific repository without modifying global Codex CLI configurations.
 
-#### 1. プロジェクトの `.agents/skills` にコピー
-対象プロジェクトのルートディレクトリで実行します:
+#### 1. Copy to `.agents/skills` in Target Project
+Run the following from your target project's root:
 
 ```bash
-# 対象プロジェクトのディレクトリへ移動
+# Navigate to the target project directory
 cd /path/to/my-project
 
-# スキル用ディレクトリを作成
+# Create the skills directory
 mkdir -p .agents/skills
 
-# Codex-Antigravity からスキルをコピー
+# Copy skills from Codex-Antigravity
 cp -r /path/to/Codex-Antigravity/skills/* .agents/skills/
 ```
 
-#### 2. プロジェクトの `AGENTS.md` または `CODEX.md` にルーティング指針を追加
-プロジェクトルートに `AGENTS.md`（または `CODEX.md`）を作成・追記し、Codex が自動で Antigravity を活用できるように設定します:
+#### 2. Add Delegation Rules to `AGENTS.md` or `CODEX.md`
+Create or update `AGENTS.md` (or `CODEX.md`) at the root of your project:
 
 ```markdown
 # Agent Delegation Rules
 
 ## Antigravity Research & QA Delegation
-- 外部APIドキュメント、最新バージョン、GitHub Issue調査は `skills/antigravity-research` に委譲すること。
-- プロジェクト構成把握・影響範囲分析は `/codebase` または `skills/antigravity-research` に委譲すること。
-- テスト実行および障害原因のトリアージは `/test` または `skills/test-delegation` に委譲すること。
-- 実装コードの編集、Gitコミット、最終的な意思決定は Codex 自身が行うこと。
+- Delegate external API documentation, latest version queries, and GitHub issue research to `skills/antigravity-research`.
+- Delegate codebase structure reconnaissance and impact analysis to `/codebase` or `skills/antigravity-research`.
+- Delegate test execution and failure root cause triage to `/test` or `skills/test-delegation`.
+- Production code editing, Git commits, and final decisions must be performed by Codex directly.
 ```
 
 ---
 
-### ステップ 3: Codex CLI での初回動作確認 (Verification)
+### Step 3: Verification with Codex CLI
 
-セットアップ完了後、実際に Codex CLI を起動して連携を確認します。
+After setup, launch Codex CLI to test the integration.
 
-#### 1. Codex CLI を対話モードで起動
+#### 1. Launch Codex CLI in Interactive Mode
 ```bash
 codex
 ```
 
-#### 2. スラッシュコマンドによる動作テスト
-Codex のプロンプトから以下のコマンドを入力します:
+#### 2. Test Slash Commands
+Enter the following commands at the Codex prompt:
 
 ```text
-# 1. 外部調査コマンドのテスト
-> /research ONNX Runtime 1.20 の CUDA 要件を調べて
+# 1. Test external research command
+> /research What are the CUDA requirements for ONNX Runtime 1.20?
 
-# 2. コードベース現状把握コマンドのテスト
+# 2. Test codebase reconnaissance command
 > /codebase status
 
-# 3. テスト委任＆AIトリアージコマンドのテスト
+# 3. Test test delegation & AI triage command
 > /test
 ```
 
-#### 3. 自然言語での MCP ツール自動呼び出しテスト
-MCP サーバーを登録している場合、Codex に対話で依頼するだけで、Codex がバックグラウンドで Antigravity MCP ツールを自律的に呼び出します:
+#### 3. Test Autonomous MCP Tool Calling via Natural Language
+When the MCP server is registered, Codex automatically invokes Antigravity MCP tools in the background based on natural language requests:
 
 ```text
-> FastAPI の lifespan context manager の最新仕様を調べて
-  ⎿  Codex が antigravity_inspect_docs ツールを呼び出して仕様を取得
+> Look up the latest specification for the FastAPI lifespan context manager
+  ⎿  Codex invokes antigravity_inspect_docs tool to retrieve the spec
 
-> このプロジェクトのモジュール構成とエントリーポイントを調査して
-  ⎿  Codex が antigravity_inspect_codebase ツールを呼び出して構成を取得
+> Investigate module structure and entry points in this project
+  ⎿  Codex invokes antigravity_inspect_codebase tool to inspect structure
 
-> テストを実行して、もし失敗したら原因を診断して
-  ⎿  Codex が antigravity_run_tests ツールを呼び出して自動診断
+> Run the test suite, and if any test fails, diagnose the root cause
+  ⎿  Codex invokes antigravity_run_tests tool for automated diagnosis
 ```
 
 ---
 
-### トラブルシューティング & よくある質問 (FAQ)
+### Troubleshooting & FAQ
 
-#### Q1: `agy: command not found` と表示される
-- **原因**: `agy` コマンドがインストールされていないか、PATH に含まれていません。
-- **対処法**:
-  1. ターミナルで `which agy` を実行し、実行バイナリが存在するか確認します。
-  2. PATH が通っていない場合は、シェル設定ファイル（`~/.zshrc` や `~/.bashrc`）に PATH を追加するか、`config/defaults.toml` の `agy_path` に絶対パスを指定してください:
+#### Q1: `agy: command not found`
+- **Cause**: The `agy` command is not installed, or its location is not in your `PATH`.
+- **Solution**:
+  1. Run `which agy` in your terminal to check if the executable binary exists.
+  2. If it is not in your PATH, add it to your shell configuration (`~/.zshrc` or `~/.bashrc`), or specify the absolute path in `config/defaults.toml`:
      ```toml
      [antigravity]
-     agy_path = "/usr/local/bin/agy"  # または実際の絶対パス
+     agy_path = "/usr/local/bin/agy"  # or actual absolute path
      ```
 
-#### Q2: `Do you trust the contents of this project?` で止まってしまう
-- **原因**: Antigravity CLI 初回起動時のワークスペース信頼確認プロンプトです。
-- **対処法**:
-  一度ターミナルから手動で `agy` を起動し、キーボードの矢印キーで `Yes, I trust this folder` を選択して Enter を押してください。一度承認すると次回以降は自動スキップされます。
+#### Q2: Execution hangs at `Do you trust the contents of this project?`
+- **Cause**: Workspace trust confirmation prompt on first launch of the Antigravity CLI.
+- **Solution**:
+  Launch `agy` once manually in your terminal, use arrow keys to select `Yes, I trust this folder`, and press Enter. Once approved, this prompt is automatically skipped for subsequent runs.
 
-#### Q3: `Operation not permitted (os error 1)` やサンドボックスエラーが出る
-- **原因**: macOS のアクセス権限制御、または Codex / Antigravity のサンドボックス制限によるものです。
-- **対処法**:
-  - `mcp/server.py` や `scripts/antigravity_delegate.py` の指定パスが、ユーザー権限で読み取り可能な場所にあることを確認してください。
-  - Codex 起動時に必要に応じて `--sandbox workspace-write` や適切な権限フラグを付与してください。
+#### Q3: `Operation not permitted (os error 1)` or sandbox errors
+- **Cause**: macOS permission restrictions or Codex / Antigravity sandbox limitations.
+- **Solution**:
+  - Ensure paths passed to `mcp/server.py` and `scripts/antigravity_delegate.py` are readable by your user account.
+  - When launching Codex, specify `--sandbox workspace-write` or appropriate permission flags if needed.
 
-#### Q4: MCP サーバーのツールが Codex 内で呼び出されない
-- **原因**: MCP サーバーの起動コマンドやパスが誤っている可能性があります。
-- **対処法**:
-  1. `codex mcp list` を実行し、`Status: enabled` になっているか確認します。
-  2. 以下のテストコマンドで、MCP サーバーが JSON-RPC 経由で正常に応答するか単体テストします:
+#### Q4: MCP server tools are not invoked within Codex
+- **Cause**: Incorrect command or path configuration for the MCP server.
+- **Solution**:
+  1. Run `codex mcp list` and confirm `Status: enabled`.
+  2. Test the MCP server standalone via mock JSON-RPC:
      ```bash
      python3 mcp/server.py --mock
      ```
-  3. 全単体テストを実行して、環境全体の整合性を確認します:
+  3. Run the full test suite to verify overall environment integrity:
      ```bash
      python3 -m unittest discover -s tests -v
      ```
 
 ---
 
-## 使い方 (CLI ツール単体利用)
+## CLI Usage (Standalone)
 
-### 1. コードベース現状把握 (Codebase Reconnaissance)
+### 1. Codebase Reconnaissance
 
 ```bash
-# プロジェクト構成・技術スタック・エントリーポイントの現状把握
+# Scan project structure, tech stack, and entry points
 python3 scripts/antigravity_delegate.py \
   --dir . \
   --type codebase \
-  --task "プロジェクトの全体構成と主要モジュールを把握する"
+  --task "Analyze overall project structure and key modules"
 
-# リファクタ・変更前の影響範囲（Impact）分析
+# Impact analysis before refactoring or making changes
 python3 scripts/antigravity_delegate.py \
   --dir . \
   --type impact \
-  --task "execute_agy_cli 関数の引数変更による影響範囲"
+  --task "Impact scope of changing arguments in execute_agy_cli"
 
-# コード品質・技術的負債・TODO の静的監査
+# Static audit for code quality, technical debt, and TODOs
 python3 scripts/antigravity_delegate.py \
   --dir . \
   --type audit
 ```
 
-### 2. テスト委任＆AI障害トリアージ (Test Delegation)
+### 2. Test Delegation & AI Failure Triage
 
 ```bash
-# 自動検知されたテストランナー (pytest, cargo test, npm test等) で実行
+# Run auto-detected test runner (pytest, cargo test, npm test, etc.)
 python3 scripts/test_runner.py --dir .
 
-# テストコマンドを明示指定して実行
+# Run with an explicitly specified test command
 python3 scripts/test_runner.py --dir . --cmd "pytest tests/test_runner.py -v"
 
-# 人間が読みやすいテキスト形式で出力
+# Output in human-readable plain text format
 python3 scripts/test_runner.py --dir . --text
 ```
 
-テスト失敗時、AIが根本原因と修正指針を自動診断して返却します：
+When tests fail, AI automatically analyzes the root cause and provides suggested fixes:
 
 ```text
 ============================================================
@@ -512,55 +515,55 @@ Suggested Fix:
 ============================================================
 ```
 
-### 3. 外部ドキュメント・Web 調査
+### 3. External Documentation & Web Research
 
 ```bash
-# ドキュメント・API 仕様の確認
+# Look up documentation and API specifications
 python3 scripts/antigravity_delegate.py \
   --task "FastAPI lifespan context manager signature" \
   --type docs
 
-# 比較調査
+# Comparative technical research
 python3 scripts/antigravity_delegate.py \
   --task "uv vs poetry performance and feature comparison" \
   --type compare
 ```
 
-### 4. Codex からの利用
+### 4. Usage from Codex
 
-Codex では、以下のスキルおよびコマンドが利用可能です:
+Codex provides out-of-the-box skills and commands:
 
-- **スキル**:
-  - `skills/antigravity-research/SKILL.md`: 外部調査およびコードベース現状把握。
-  - `skills/test-delegation/SKILL.md`: テスト実行＆AI障害トリアージの委任。
-  - `skills/research-routing/SKILL.md`: Coding Agent 向けルーティング指針。
-- **スラッシュコマンド**:
-  - `/codebase [status|impact|audit]`: コードベースの現状把握・影響調査。
-  - `/test [command]`: テスト実行＆失敗時の自動AI障害診断。
-  - `/research <query>`: 外部Web・ドキュメント調査。
-  - `/research-deep <query>`: Codex ネイティブによる詳細な設計調査。
+- **Skills**:
+  - `skills/antigravity-research/SKILL.md`: External research and codebase reconnaissance.
+  - `skills/test-delegation/SKILL.md`: Test execution and AI failure triage delegation.
+  - `skills/research-routing/SKILL.md`: Routing standards for Coding Agents.
+- **Slash Commands**:
+  - `/codebase [status|impact|audit]`: Codebase reconnaissance and impact assessment.
+  - `/test [command]`: Test execution with automated failure diagnosis.
+  - `/research <query>`: External web and documentation research.
+  - `/research-deep <query>`: Deep architectural research via native Codex reasoning.
 
-### 5. MCP サーバーとしての利用
+### 5. Usage as an MCP Server
 
-stdio 経由で MCP クライアント（Codex, Claude Desktop 等）にツールを提供します:
+Provides tools to MCP clients (Codex, Claude Desktop, etc.) over stdio:
 
 ```bash
 python3 mcp/server.py
 ```
 
-提供ツール:
-- `antigravity_inspect_codebase(path?: str, focus?: "codebase"|"impact"|"audit", query?: str)`: ローカルコードベースの現状把握・影響調査
-- `antigravity_run_tests(path?: str, command?: str, diagnose?: bool)`: テスト実行・集計・AI障害診断
-- `antigravity_diagnose_failure(error_trace: str, context?: str)`: 任意のエラーログ・トレースのAI原因診断
-- `antigravity_research(query: str, depth?: "quick"|"normal", model?: str, context?: str)`: 外部調査実行
-- `antigravity_compare(item_a: str, item_b: str, criteria?: str)`: 技術・ライブラリ比較
-- `antigravity_inspect_docs(library: str, topic: str)`: ドキュメント・API仕様検索
-- `antigravity_inspect_repo(repo_or_path: str, question: str)`: リモートリポジトリ構成調査
-- `antigravity_list_models(query?: str)`: 利用可能なモデル一覧
+Available Tools:
+- `antigravity_inspect_codebase(path?: str, focus?: "codebase"|"impact"|"audit", query?: str)`: Local codebase status and impact analysis
+- `antigravity_run_tests(path?: str, command?: str, diagnose?: bool)`: Test execution, aggregation, and AI failure diagnosis
+- `antigravity_diagnose_failure(error_trace: str, context?: str)`: Root cause diagnosis for any error trace/log
+- `antigravity_research(query: str, depth?: "quick"|"normal", model?: str, context?: str)`: External research execution
+- `antigravity_compare(item_a: str, item_b: str, criteria?: str)`: Technology and library comparison
+- `antigravity_inspect_docs(library: str, topic: str)`: Documentation and API spec lookup
+- `antigravity_inspect_repo(repo_or_path: str, question: str)`: Remote repository structure inspection
+- `antigravity_list_models(query?: str)`: List available models
 
 ---
 
-## 設定 (`config/defaults.toml`)
+## Configuration (`config/defaults.toml`)
 
 ```toml
 [antigravity]
@@ -615,39 +618,38 @@ allow_absolute_paths = false
 
 ---
 
-## セキュリティ & 安全ポリシー層 (`SafetyPolicy`)
+## Security & Safety Policy Layer (`SafetyPolicy`)
 
-Codex-Antigravity は単なるプロンプト指示依存の安全性ではなく、**コードレベルの厳格な執行レイヤー (`scripts/safety.py`)** を備えています。
+Codex-Antigravity does not rely merely on prompt instructions for safety; it implements an **enforced code-level security layer (`scripts/safety.py`)**:
 
 ```text
 SafetyPolicy
- ├── validate_workspace(path)       # ../ パストラバーサル, ルート外アクセスの完全遮断
- ├── validate_command(cmd)          # shell=False, ALLOWED_RUNNERS (pytest, cargo, npm等) 検証
- ├── sanitize_environment()        # GITHUB_TOKEN, AWS_SECRET 等の機密変数を事前除去
- ├── build_agy_permissions()        # readonly_enforced 時の agy --sandbox 強制
- └── Prompt Injection Isolation     # リポジトリ・外部WebコンテンツをUNTRUSTED DATAとしてタグ隔離
+ ├── validate_workspace(path)       # Completely blocks ../ path traversal and out-of-root access
+ ├── validate_command(cmd)          # shell=False, verifies ALLOWED_RUNNERS (pytest, cargo, npm, etc.)
+ ├── sanitize_environment()        # Preemptively strips sensitive tokens (GITHUB_TOKEN, AWS_SECRET, etc.)
+ ├── build_agy_permissions()        # Enforces agy --sandbox when readonly_enforced is true
+ └── Prompt Injection Isolation     # Isolates repo & external web content inside UNTRUSTED DATA tags
 ```
 
-1. **`/test` の `shell=False` 実行**:
-   任意文字列のシェル評価を廃止し、ホワイトリストされたランナーのみを安全な `argv[]` 形式で直接実行。シェルメタ文字（`;`, `&&`, `|`, `$()` 等）は即座に拒絶。
-2. **Process-Tree 一括終了**:
-   POSIX 環境下で `start_new_session=True` を設定し、タイムアウト時にはプロセスグループ単位（`os.killpg`）で Vitest や Node ワーカー等の子プロセスを確実に消滅。
-3. **Workspace Boundary の厳格制限**:
-   `--dir` や MCP の `path` に対し、ワークスペースルート外への脱出（パストラバーサル）を自動検知して `SecurityError` を送出。
-4. **Prompt Injection 防御**:
-   調査対象のリポジトリコードやドキュメントをすべて「UNTRUSTED DATA」として扱い、エージェントロールや制約を上書きする指示を無効化。
-5. **Claim ↔ Evidence (根拠) 構造化**:
-   調査結果において「どの主張がどのソースに裏付けられているか」を `claims: [{claim, source, confidence, verified}]` として構造化抽出。
-6. **Policy-as-Code ルーター**:
-   コード編集・ファイル書き込み・Gitコミットを伴うタスクは、LLMの判断に関わらずコード判定で **Codex Native** へ強制誘導。
+1. **`shell=False` Execution for `/test`**:
+   Arbitrary shell evaluation is abolished. Only whitelisted runners are executed directly using safe `argv[]` lists. Shell metacharacters (`;`, `&&`, `|`, `$()`, etc.) are immediately rejected.
+2. **Process-Tree Termination**:
+   Configured with `start_new_session=True` on POSIX systems; on timeouts, child worker processes (such as Vitest or Node workers) are reliably killed at the process group level (`os.killpg`).
+3. **Strict Workspace Boundary Validation**:
+   Attempts to escape the workspace root via `--dir` or MCP `path` arguments are detected, raising a `SecurityError`.
+4. **Prompt Injection Defense**:
+   All target repository code and external documentation are treated as "UNTRUSTED DATA", neutralizing adversarial instructions attempting to override agent roles or safety boundaries.
+5. **Structured Claim ↔ Evidence Mapping**:
+   Research results extract source grounding as structured records: `claims: [{claim, source, confidence, verified}]`.
+6. **Policy-as-Code Routing**:
+   Tasks requiring file editing, writing, or Git commits are hard-routed to **Codex Native** via programmatic policy checks, regardless of LLM judgment.
 
 ---
 
-## テストの実行
+## Running Tests
 
-全単体テストを Python 標準の `unittest` で実行します:
+Run the full unit test suite using standard Python `unittest`:
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
-
