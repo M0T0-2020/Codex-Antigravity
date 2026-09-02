@@ -79,6 +79,51 @@ Markdown heading summary.
         self.assertTrue(len(result["raw_text"]) > 100)
         self.assertIn("[Output truncated at max_output_chars limit]", result["raw_text"])
 
+    def test_parse_claims_section(self):
+        sample = """SUMMARY:
+ONNX Runtime analysis complete.
+
+CLAIMS:
+- Claim: ONNX Runtime 1.18 requires cuDNN 9.x
+  Source: https://onnxruntime.ai/docs
+  Confidence: high
+- Claim: Python 3.8 is deprecated in the latest release
+  Source: https://github.com/microsoft/onnxruntime/releases
+  Confidence: medium
+
+FINDINGS:
+- ONNX Runtime 1.18 requires cuDNN 9.x
+- Python 3.8 is deprecated in the latest release
+
+SOURCES:
+- https://onnxruntime.ai/docs
+- https://github.com/microsoft/onnxruntime/releases
+"""
+        result = parse_structured_output(sample)
+        self.assertIn("claims", result)
+        self.assertEqual(len(result["claims"]), 2)
+        c1 = result["claims"][0]
+        self.assertEqual(c1["claim"], "ONNX Runtime 1.18 requires cuDNN 9.x")
+        self.assertEqual(c1["source"], "https://onnxruntime.ai/docs")
+        self.assertEqual(c1["confidence"], "high")
+        self.assertTrue(c1["verified"])
+
+    def test_parse_claims_synthesized_when_omitted(self):
+        sample = """SUMMARY:
+Test summary.
+
+FINDINGS:
+- Direct finding without explicit claims block
+
+SOURCES:
+- https://example.com/source
+"""
+        result = parse_structured_output(sample)
+        self.assertIn("claims", result)
+        self.assertEqual(len(result["claims"]), 1)
+        self.assertEqual(result["claims"][0]["claim"], "Direct finding without explicit claims block")
+        self.assertEqual(result["claims"][0]["source"], "https://example.com/source")
+
 
 if __name__ == "__main__":
     unittest.main()

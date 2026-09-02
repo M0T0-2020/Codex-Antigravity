@@ -151,6 +151,61 @@ class TestMCPServer(unittest.TestCase):
         self.assertEqual(res["id"], 7)
         self.assertFalse(res["result"]["isError"])
 
+    def test_tools_call_run_tests_structured(self):
+        req = {
+            "jsonrpc": "2.0",
+            "id": 61,
+            "method": "tools/call",
+            "params": {
+                "name": "antigravity_run_tests",
+                "arguments": {
+                    "path": ".",
+                    "runner": "pytest",
+                    "args": ["-v", "tests/test_routing.py"],
+                },
+            },
+        }
+        res = handle_json_rpc(req, mock=True)
+        self.assertEqual(res["id"], 61)
+        self.assertFalse(res["result"]["isError"])
+        content = res["result"]["content"][0]["text"]
+        self.assertIn("Test Execution Status", content)
+
+    def test_tools_call_run_tests_boundary_violation(self):
+        req = {
+            "jsonrpc": "2.0",
+            "id": 62,
+            "method": "tools/call",
+            "params": {
+                "name": "antigravity_run_tests",
+                "arguments": {
+                    "path": "../../outside",
+                },
+            },
+        }
+        res = handle_json_rpc(req, mock=False)
+        self.assertEqual(res["id"], 62)
+        content = res["result"]["content"][0]["text"]
+        self.assertIn("boundary violation", content.lower())
+
+    def test_tools_call_research_renders_claims(self):
+        req = {
+            "jsonrpc": "2.0",
+            "id": 63,
+            "method": "tools/call",
+            "params": {
+                "name": "antigravity_research",
+                "arguments": {
+                    "query": "Check API stability",
+                },
+            },
+        }
+        res = handle_json_rpc(req, mock=True)
+        self.assertEqual(res["id"], 63)
+        self.assertFalse(res["result"]["isError"])
+        content = res["result"]["content"][0]["text"]
+        self.assertIn("Claims & Evidence", content)
+
     def test_unknown_method(self):
         req = {
             "jsonrpc": "2.0",

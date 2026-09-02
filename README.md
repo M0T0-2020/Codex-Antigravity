@@ -50,16 +50,47 @@ Coding Agent (Codex)
 
 ---
 
+## ⚡ 30秒 Quick Start
+
+最短で導入して使い始めるためのクイックスタートです:
+
+```bash
+# 1. リポジトリのクローン & 移動
+git clone git@github.com:M0T0-2020/Codex-Antigravity.git
+cd Codex-Antigravity
+
+# 2. 環境診断 (agy CLI のインストール状態を確認)
+python3 scripts/check_antigravity.py
+
+# 3. Codex CLI プラグインとしてワンコマンド追加
+codex plugin marketplace add .
+codex plugin add codex-antigravity@codex-antigravity-market
+```
+
+登録完了後、Codex チャット上で直ちに以下のコマンドを利用できます:
+
+```text
+/research ONNX Runtime 1.18 の最新変更点と注意点
+/codebase status
+/test
+```
+
+---
+
 ## ディレクトリ構成
 
 ```text
-codagy/
+Codex-Antigravity/
 ├── .agents/
 │   └── plugins/
 │       └── marketplace.json           # Codex プラグインマーケットプレイス定義
 │
 ├── .codex-plugin/
 │   └── plugin.json                    # Codex プラグインマニフェスト
+│
+├── .github/
+│   └── workflows/
+│       └── test.yml                   # CI 自動テストワークフロー (Python 3.9〜3.13)
 │
 ├── .mcp.json                          # MCP サーバー構成定義
 │
@@ -81,7 +112,7 @@ codagy/
 │   └── research-deep.md               # /research-deep コマンド定義
 │
 ├── config/
-│   └── defaults.toml                  # 設定ファイル (モデル, テスト設定, コードベース設定等)
+│   └── defaults.toml                  # 設定ファイル (モデルTier, テスト, 安全ポリシー等)
 │
 ├── mcp/
 │   ├── __init__.py
@@ -89,15 +120,19 @@ codagy/
 │
 ├── scripts/
 │   ├── __init__.py
-│   ├── antigravity_delegate.py        # コア委譲スクリプト (--dir, codebase/impact/audit 対応)
+│   ├── safety.py                      # 安全ポリシー層 (境界検査, command検証, envサニタイズ)
+│   ├── router.py                      # Policy-as-Code ルーター (変更要求遮断)
+│   ├── antigravity_delegate.py        # コア委譲スクリプト (プロンプト防御, claims抽出, sandbox)
 │   ├── codebase_analyzer.py           # 高速ローカルプロジェクトスキャナー (<100ms)
-│   ├── test_runner.py                 # テスト実行＆AI障害トリアージエンジン
+│   ├── test_runner.py                 # テスト実行＆AI障害トリアージ (shell=False, process-group kill)
 │   ├── check_antigravity.py           # 環境診断スクリプト
-│   ├── config_loader.py               # TOML 設定ローダー
-│   └── models.py                      # モデル解決・エイリアス管理
+│   ├── config_loader.py               # TOML 設定ローダー (tomllib優先)
+│   └── models.py                      # 動的モデルTier解決 (flash/pro/claude)
 │
 ├── tests/
 │   ├── __init__.py
+│   ├── test_safety.py                 # 安全ポリシー＆インジェクション拒絶テスト
+│   ├── test_router.py                 # Policy-as-Code ルーターテスト
 │   ├── test_codebase_analyzer.py      # コードベーススキャナーテスト
 │   ├── test_test_runner.py            # テスト実行＆障害診断テスト
 │   ├── test_delegate.py               # 委譲・プロンプト・モックテスト
@@ -197,17 +232,17 @@ Codex CLI の公式プラグイン管理システム（Marketplace 機能）を�
 Codex に本リポジトリをマーケットプレイスソースとして登録します:
 
 ```bash
-# codagy ディレクトリ外から実行する場合 (絶対パスを指定)
-codex plugin marketplace add /path/to/codagy
+# Codex-Antigravity ディレクトリ外から実行する場合 (絶対パスを指定)
+codex plugin marketplace add /path/to/Codex-Antigravity
 
-# codagy ディレクトリ直下にいる場合
+# Codex-Antigravity ディレクトリ直下にいる場合
 codex plugin marketplace add .
 ```
 
 実行結果:
 ```text
-Added marketplace `codex-antigravity-market` from /path/to/codagy.
-Installed marketplace root: /path/to/codagy
+Added marketplace `codex-antigravity-market` from /path/to/Codex-Antigravity.
+Installed marketplace root: /path/to/Codex-Antigravity
 ```
 
 #### 2. プラグインのインストール
@@ -233,10 +268,10 @@ codex plugin list
 出力例:
 ```text
 Marketplace `codex-antigravity-market`
-/path/to/codagy/.agents/plugins/marketplace.json
+/path/to/Codex-Antigravity/.agents/plugins/marketplace.json
 
 PLUGIN                                      STATUS              VERSION  PATH
-codex-antigravity@codex-antigravity-market  installed, enabled  1.0.0    /path/to/codagy
+codex-antigravity@codex-antigravity-market  installed, enabled  1.0.0    /path/to/Codex-Antigravity
 ```
 `installed, enabled` と表示されていればセットアップ完了です！
 
@@ -261,11 +296,11 @@ Codex の **Model Context Protocol (MCP)** クライアント機能を利用し�
 
 ```bash
 # ※ 必ず server.py の絶対パスを指定してください
-codex mcp add codex-antigravity -- python3 /絶対パス/to/codagy/mcp/server.py
+codex mcp add codex-antigravity -- python3 /絶対パス/to/Codex-Antigravity/mcp/server.py
 ```
 
 > [!TIP]
-> 現在の作業ディレクトリが `codagy` の場合、以下のように指定できます:
+> 現在の作業ディレクトリが `Codex-Antigravity` の場合、以下のように指定できます:
 > ```bash
 > codex mcp add codex-antigravity -- python3 "$(pwd)/mcp/server.py"
 > ```
@@ -281,7 +316,7 @@ Added global MCP server 'codex-antigravity'.
 ```toml
 [mcp_servers.codex-antigravity]
 command = "python3"
-args = ["/絶対パス/to/codagy/mcp/server.py"]
+args = ["/絶対パス/to/Codex-Antigravity/mcp/server.py"]
 ```
 
 #### 2. 登録確認
@@ -293,8 +328,8 @@ codex mcp list
 
 出力例:
 ```text
-Name               Command  Args                             Env  Cwd  Status   Auth       
-codex-antigravity  python3  /path/to/codagy/mcp/server.py    -    -    enabled  Unsupported
+Name               Command  Args                                      Env  Cwd  Status   Auth       
+codex-antigravity  python3  /path/to/Codex-Antigravity/mcp/server.py  -    -    enabled  Unsupported
 ```
 `Status: enabled` になっていれば完了です。
 
@@ -319,8 +354,8 @@ cd /path/to/my-project
 # スキル用ディレクトリを作成
 mkdir -p .agents/skills
 
-# codagy からスキルをコピー
-cp -r /path/to/codagy/skills/* .agents/skills/
+# Codex-Antigravity からスキルをコピー
+cp -r /path/to/Codex-Antigravity/skills/* .agents/skills/
 ```
 
 #### 2. プロジェクトの `AGENTS.md` または `CODEX.md` にルーティング指針を追加
@@ -538,9 +573,9 @@ max_output_chars = 20000
 retry_count = 1
 
 [models]
-research = "gemini-3.8-flash-high"
-complex_research = "gemini-3.8-flash-high"
-diagnosis = "gemini-3.8-flash-high"
+research = "flash"
+complex_research = "pro"
+diagnosis = "flash"
 
 [codebase]
 enabled = true
@@ -573,7 +608,38 @@ disallow_file_writes = true
 disallow_git_write = true
 disallow_package_install = true
 disallow_arbitrary_shell = true
+allowed_roots = ["."]
+allow_parent_paths = false
+allow_absolute_paths = false
 ```
+
+---
+
+## セキュリティ & 安全ポリシー層 (`SafetyPolicy`)
+
+Codex-Antigravity は単なるプロンプト指示依存の安全性ではなく、**コードレベルの厳格な執行レイヤー (`scripts/safety.py`)** を備えています。
+
+```text
+SafetyPolicy
+ ├── validate_workspace(path)       # ../ パストラバーサル, ルート外アクセスの完全遮断
+ ├── validate_command(cmd)          # shell=False, ALLOWED_RUNNERS (pytest, cargo, npm等) 検証
+ ├── sanitize_environment()        # GITHUB_TOKEN, AWS_SECRET 等の機密変数を事前除去
+ ├── build_agy_permissions()        # readonly_enforced 時の agy --sandbox 強制
+ └── Prompt Injection Isolation     # リポジトリ・外部WebコンテンツをUNTRUSTED DATAとしてタグ隔離
+```
+
+1. **`/test` の `shell=False` 実行**:
+   任意文字列のシェル評価を廃止し、ホワイトリストされたランナーのみを安全な `argv[]` 形式で直接実行。シェルメタ文字（`;`, `&&`, `|`, `$()` 等）は即座に拒絶。
+2. **Process-Tree 一括終了**:
+   POSIX 環境下で `start_new_session=True` を設定し、タイムアウト時にはプロセスグループ単位（`os.killpg`）で Vitest や Node ワーカー等の子プロセスを確実に消滅。
+3. **Workspace Boundary の厳格制限**:
+   `--dir` や MCP の `path` に対し、ワークスペースルート外への脱出（パストラバーサル）を自動検知して `SecurityError` を送出。
+4. **Prompt Injection 防御**:
+   調査対象のリポジトリコードやドキュメントをすべて「UNTRUSTED DATA」として扱い、エージェントロールや制約を上書きする指示を無効化。
+5. **Claim ↔ Evidence (根拠) 構造化**:
+   調査結果において「どの主張がどのソースに裏付けられているか」を `claims: [{claim, source, confidence, verified}]` として構造化抽出。
+6. **Policy-as-Code ルーター**:
+   コード編集・ファイル書き込み・Gitコミットを伴うタスクは、LLMの判断に関わらずコード判定で **Codex Native** へ強制誘導。
 
 ---
 

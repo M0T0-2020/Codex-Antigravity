@@ -17,16 +17,19 @@ import argparse
 import json
 import os
 import re
+import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from codebase_analyzer import detect_project_stack  # type: ignore
 from config_loader import load_config  # type: ignore
 from models import find_agy_binary, resolve_model  # type: ignore
+from safety import SafetyPolicy, SecurityError  # type: ignore
 
 DIAGNOSIS_PROMPT_TEMPLATE = """You are an expert software QA and debugging agent assisting a Coding Agent (Codex).
 
@@ -214,32 +217,56 @@ def parse_test_results(stdout: str, stderr: str, exit_code: int) -> Dict[str, An
 
 
 def run_test_command(
-    command: str,
+    command: Union[str, List[str]],
     project_dir: str,
     timeout: int = 180,
+    safety_policy: Optional[SafetyPolicy] = None,
 ) -> Tuple[bool, str, str, int, float]:
-    """Execute the test command within the project directory."""
-    abs_dir = os.path.abspath(project_dir)
+    """Execute the test command within the project directory with shell=False and process-tree cleanup."""
+    policy = safety_policy or SafetyPolicy()
     start_time = time.time()
 
-    env = dict(os.environ)
+    # 1. Validate workspace boundary
+    try:
+        abs_dir = str(policy.validate_workspace(project_dir))
+    except SecurityError as exc:
+        return (False, "", str(exc), -1, 0.0)
+
+    # 2. Validate and parse command into safe argv list
+    try:
+        argv = policy.validate_command(command)
+    except SecurityError as exc:
+        return (False, "", str(exc), -1, 0.0)
+
+    # 3. Sanitize environment
+    env = policy.sanitize_environment()
+
+    popen_kwargs: Dict[str, Any] = {
+        "cwd": abs_dir,
+        "shell": False,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "text": True,
+        "env": env,
+    }
+    if sys.platform != "win32":
+        popen_kwargs["start_new_session"] = True
 
     try:
-        proc = subprocess.Popen(
-            command,
-            cwd=abs_dir,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=env,
-        )
+        proc = subprocess.Popen(argv, **popen_kwargs)
         try:
             stdout, stderr = proc.communicate(timeout=timeout)
             duration = round(time.time() - start_time, 3)
             return (proc.returncode == 0, stdout, stderr, proc.returncode, duration)
         except subprocess.TimeoutExpired:
-            proc.kill()
+            # Kill child processes in the process group
+            if sys.platform != "win32":
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    proc.kill()
+            else:
+                proc.kill()
             stdout, stderr = proc.communicate()
             duration = round(time.time() - start_time, 3)
             return (False, stdout, f"Test execution timed out after {timeout} seconds.", -1, duration)
@@ -377,6 +404,8 @@ def generate_mock_diagnosis() -> Dict[str, Any]:
 def delegate_test_run(
     project_dir: str = ".",
     command: Optional[str] = None,
+    runner: Optional[str] = None,
+    args: Optional[List[str]] = None,
     diagnose: bool = True,
     effort: str = "low",
     model: Optional[str] = None,
@@ -385,16 +414,40 @@ def delegate_test_run(
     mock: bool = False,
     mock_should_pass: bool = False,
 ) -> Dict[str, Any]:
-    """Delegate test execution and optional failure diagnosis."""
+    """Delegate test execution and optional failure diagnosis with security verification."""
     cfg = load_config(config_path)
     test_cfg = cfg.get("testing", {})
     t_out = timeout or test_cfg.get("default_timeout_seconds", 180)
+    policy = SafetyPolicy(cfg)
 
-    abs_dir = os.path.abspath(project_dir)
+    # Validate workspace boundary
+    try:
+        abs_dir = str(policy.validate_workspace(project_dir))
+    except SecurityError as exc:
+        return {
+            "success": False,
+            "command": command or runner or "unknown",
+            "project_dir": project_dir,
+            "metrics": {"total": 0, "passed": 0, "failed": 0, "errors": 1, "skipped": 0},
+            "failures_count": 0,
+            "failures": [],
+            "duration_seconds": 0.0,
+            "diagnosis": None,
+            "error": f"Security boundary violation: {exc}",
+        }
+
     stack = detect_project_stack(abs_dir)
     project_name = os.path.basename(abs_dir)
 
-    test_cmd = command or detect_test_command(abs_dir)
+    if runner:
+        test_cmd: Union[str, List[str]] = [runner] + (args or [])
+        display_cmd = " ".join(test_cmd)
+    elif command:
+        test_cmd = command
+        display_cmd = command
+    else:
+        test_cmd = detect_test_command(abs_dir)
+        display_cmd = test_cmd
 
     # 1. Execute tests
     if mock:
@@ -404,6 +457,7 @@ def delegate_test_run(
             command=test_cmd,
             project_dir=abs_dir,
             timeout=t_out,
+            safety_policy=policy,
         )
 
     # 2. Parse results
@@ -413,7 +467,7 @@ def delegate_test_run(
 
     result: Dict[str, Any] = {
         "success": success and metrics["failed"] == 0 and metrics["errors"] == 0,
-        "command": test_cmd,
+        "command": display_cmd,
         "project_dir": abs_dir,
         "metrics": metrics,
         "failures_count": len(failures),
@@ -447,6 +501,12 @@ def delegate_test_run(
                 if diag_model:
                     cmd_args.extend(["--model", diag_model])
 
+                # Enforce sandbox if configured
+                if policy.build_agy_permissions().get("sandbox"):
+                    cmd_args.append("--sandbox")
+
+                safe_diag_env = policy.sanitize_environment()
+
                 try:
                     proc = subprocess.run(
                         cmd_args,
@@ -454,6 +514,7 @@ def delegate_test_run(
                         stderr=subprocess.PIPE,
                         text=True,
                         timeout=60,
+                        env=safe_diag_env,
                     )
                     if proc.returncode == 0 and proc.stdout:
                         result["diagnosis"] = parse_diagnosis_output(proc.stdout)
@@ -469,6 +530,8 @@ def main():
     )
     parser.add_argument("--dir", type=str, default=".", help="Project workspace directory")
     parser.add_argument("--cmd", type=str, default=None, help="Explicit test command to execute")
+    parser.add_argument("--runner", type=str, default=None, help="Specific test runner (e.g. pytest, cargo, npm)")
+    parser.add_argument("--args", nargs="*", default=None, help="Arguments to pass to the test runner")
     parser.add_argument("--timeout", type=int, default=None, help="Test timeout in seconds")
     parser.add_argument("--no-diagnose", action="store_true", help="Skip AI diagnosis on failure")
     parser.add_argument("--effort", type=str, default="low", choices=["low", "medium", "high"])
@@ -484,6 +547,8 @@ def main():
     result = delegate_test_run(
         project_dir=args.dir,
         command=args.cmd,
+        runner=args.runner,
+        args=args.args,
         diagnose=not args.no_diagnose,
         effort=args.effort,
         model=args.model,

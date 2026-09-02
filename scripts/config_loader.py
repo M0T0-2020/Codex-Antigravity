@@ -55,6 +55,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "disallow_git_write": True,
         "disallow_package_install": True,
         "disallow_arbitrary_shell": True,
+        "allowed_roots": ["."],
+        "allow_parent_paths": False,
+        "allow_absolute_paths": False,
     },
 }
 
@@ -62,7 +65,11 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 def _parse_toml_value(raw: str) -> Any:
     raw = raw.strip()
     if raw.startswith('"') and raw.endswith('"'):
-        return raw[1:-1].encode("utf-8").decode("unicode_escape")
+        try:
+            import json
+            return json.loads(raw)
+        except Exception:
+            return raw[1:-1]
     if raw.startswith("'") and raw.endswith("'"):
         return raw[1:-1]
     if raw.lower() == "true":

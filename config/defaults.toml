@@ -8,9 +8,9 @@ max_output_chars = 20000
 retry_count = 1
 
 [models]
-research = "gemini-3.8-flash-high"
-complex_research = "gemini-3.8-flash-high"
-diagnosis = "gemini-3.8-flash-high"
+research = "flash"
+complex_research = "pro"
+diagnosis = "flash"
 
 [codebase]
 enabled = true
@@ -43,3 +43,6 @@ disallow_file_writes = true
 disallow_git_write = true
 disallow_package_install = true
 disallow_arbitrary_shell = true
+allowed_roots = ["."]
+allow_parent_paths = false
+allow_absolute_paths = false

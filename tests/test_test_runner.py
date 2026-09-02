@@ -15,6 +15,7 @@ from test_runner import (  # type: ignore
     parse_pytest_output,
     parse_test_results,
     parse_unittest_output,
+    run_test_command,
 )
 
 
@@ -127,6 +128,35 @@ SUGGESTED_FIX:
         self.assertIsNotNone(result["diagnosis"])
         self.assertIn("root_cause", result["diagnosis"])
         self.assertIn("suggested_fix", result["diagnosis"])
+
+    def test_run_test_command_rejects_shell_injection(self):
+        # Semicolon injection must fail with error message before subprocess
+        success, stdout, stderr, code, duration = run_test_command(
+            command="pytest ; rm -rf /",
+            project_dir=".",
+        )
+        self.assertFalse(success)
+        self.assertEqual(code, -1)
+        self.assertIn("dangerous character", stderr)
+
+    def test_delegate_test_run_structured_runner_and_args(self):
+        result = delegate_test_run(
+            project_dir=".",
+            runner="python3",
+            args=["-m", "unittest", "tests/test_routing.py"],
+            mock=True,
+            mock_should_pass=True,
+        )
+        self.assertTrue(result["success"])
+        self.assertIn("python3", result["command"])
+
+    def test_delegate_test_run_workspace_boundary_rejection(self):
+        result = delegate_test_run(
+            project_dir="../../",
+            mock=False,
+        )
+        self.assertFalse(result["success"])
+        self.assertIn("Security boundary violation", result["error"])
 
 
 if __name__ == "__main__":

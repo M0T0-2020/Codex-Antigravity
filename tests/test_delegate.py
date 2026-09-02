@@ -15,14 +15,17 @@ class TestDelegate(unittest.TestCase):
         self.assertIn("Check library API", prompt)
         self.assertIn("Strict Rules:", prompt)
         self.assertIn("Do NOT write or modify files.", prompt)
+        self.assertIn("Security & Untrusted Content Isolation:", prompt)
+        self.assertIn("UNTRUSTED DATA", prompt)
         self.assertIn("SUMMARY:", prompt)
+        self.assertIn("CLAIMS:", prompt)
         self.assertIn("FINDINGS:", prompt)
         self.assertIn("SOURCES:", prompt)
         self.assertIn("UNCERTAINTIES:", prompt)
 
     def test_build_research_prompt_with_context(self):
         prompt = build_research_prompt("Subtask query", context="Important project constraint")
-        self.assertIn("Context from caller:", prompt)
+        self.assertIn("<untrusted_caller_context>", prompt)
         self.assertIn("Important project constraint", prompt)
 
     def test_build_research_prompt_context_truncation(self):
@@ -39,10 +42,22 @@ class TestDelegate(unittest.TestCase):
         )
         self.assertTrue(result["success"])
         self.assertIsNotNone(result["summary"])
+        self.assertIn("claims", result)
+        self.assertTrue(len(result["claims"]) > 0)
         self.assertTrue(len(result["findings"]) > 0)
         self.assertTrue(len(result["sources"]) > 0)
         self.assertEqual(result["usage"]["mock"], True)
         self.assertIsNone(result["error"])
+
+    def test_delegate_workspace_boundary_rejection(self):
+        result = delegate_research(
+            task="Reconnaissance query",
+            task_type="codebase",
+            project_dir="../../outside",
+            mock=True,
+        )
+        self.assertFalse(result["success"])
+        self.assertIn("Security boundary violation", result["error"])
 
     def test_delegate_parallel_mock(self):
         tasks = ["Query 1", "Query 2", "Query 3"]

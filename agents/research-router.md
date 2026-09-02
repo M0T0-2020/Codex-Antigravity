@@ -4,8 +4,12 @@ The Research Router evaluates user prompts and plans to route research subtasks 
 
 ## Core Directives
 
-1. **Classify the Query**:
-   - If the request requires modifying files, running git commits, or writing implementation code: **Route to Codex Native**.
+1. **Classify the Query & Policy-as-Code Validation**:
+   - All tasks pass through Policy-as-Code validation (`scripts/router.py`):
+     ```bash
+     python3 scripts/router.py --task "<query>"
+     ```
+   - If the request requires modifying files, running git commits, package installation, or writing implementation code: **Route to Codex Native** (SafetyPolicy rejects Antigravity delegation).
    - If the request is a self-contained question about documentation, external libraries, version compatibilities, or GitHub issues: **Route to Antigravity CLI** (`scripts/antigravity_delegate.py`).
    - If the request is about understanding project structure, tech stack, architecture entry points, or change impact: **Route to Antigravity Codebase Scout** (`python3 scripts/antigravity_delegate.py --dir . --type codebase`).
    - If the request is about running tests, verifying implementation, or diagnosing test failures: **Route to Test Delegator** (`python3 scripts/test_runner.py --dir .`).

@@ -23,7 +23,7 @@ from test_runner import delegate_test_run  # type: ignore
 
 SERVER_INFO = {
     "name": "antigravity-mcp-server",
-    "version": "1.0.0",
+    "version": "1.1.0",
 }
 
 TOOLS = [
@@ -152,18 +152,28 @@ TOOLS = [
     },
     {
         "name": "antigravity_run_tests",
-        "description": "Execute tests in the target project workspace, collect metrics, and auto-diagnose failures.",
+        "description": "Execute tests in the target project workspace, collect metrics, and auto-diagnose failures with safety constraints.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "Target project directory (defaults to current directory '.').",
+                    "description": "Target project directory within authorized workspace boundary (defaults to current directory '.').",
                     "default": ".",
+                },
+                "runner": {
+                    "type": "string",
+                    "enum": ["pytest", "python", "python3", "cargo", "npm", "pnpm", "yarn", "vitest", "jest", "go", "ctest", "make"],
+                    "description": "Allowed test runner (e.g. 'pytest', 'cargo', 'npm', 'vitest'). Auto-detected if omitted.",
+                },
+                "args": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Arguments passed to runner (e.g. ['-v', 'tests/test_foo.py']).",
                 },
                 "command": {
                     "type": "string",
-                    "description": "Optional explicit test command (e.g. 'pytest tests/test_foo.py', 'cargo test'). Auto-detected if omitted.",
+                    "description": "Legacy test command string (validated and parsed securely with shell=False).",
                 },
                 "diagnose": {
                     "type": "boolean",
@@ -225,7 +235,6 @@ def call_tool(name: str, arguments: Dict[str, Any], mock: bool = False) -> Dict[
             "models": models,
         }
 
-
     elif name == "antigravity_compare":
         item_a = arguments.get("item_a", "")
         item_b = arguments.get("item_b", "")
@@ -279,10 +288,14 @@ def call_tool(name: str, arguments: Dict[str, Any], mock: bool = False) -> Dict[
 
     elif name == "antigravity_run_tests":
         path = arguments.get("path", ".")
+        runner = arguments.get("runner")
+        args = arguments.get("args")
         command = arguments.get("command")
         diagnose = arguments.get("diagnose", True)
         return delegate_test_run(
             project_dir=path,
+            runner=runner,
+            args=args,
             command=command,
             diagnose=diagnose,
             mock=mock,
@@ -304,6 +317,7 @@ def call_tool(name: str, arguments: Dict[str, Any], mock: bool = False) -> Dict[
             "success": False,
             "error": f"Unknown tool: {name}",
             "summary": "",
+            "claims": [],
             "findings": [],
             "sources": [],
             "uncertainties": [],
@@ -318,6 +332,8 @@ def format_tool_response(raw_result: Dict[str, Any]) -> Dict[str, Any]:
     if "metrics" in raw_result:
         m = raw_result["metrics"]
         text_parts.append(f"### Test Execution Status: {'PASSED' if raw_result.get('success') else 'FAILED'}")
+        if raw_result.get("error"):
+            text_parts.append(f"- Error: {raw_result['error']}")
         text_parts.append(f"- Command: `{raw_result.get('command')}`")
         text_parts.append(f"- Duration: {raw_result.get('duration_seconds')}s")
         text_parts.append(f"- Results: {m.get('passed', 0)} passed, {m.get('failed', 0)} failed, {m.get('errors', 0)} errors (total {m.get('total', 0)})")
@@ -338,6 +354,13 @@ def format_tool_response(raw_result: Dict[str, Any]) -> Dict[str, Any]:
     else:
         if raw_result.get("summary"):
             text_parts.append(f"### Summary\n{raw_result['summary']}")
+        if raw_result.get("claims"):
+            claims_lines = []
+            for c in raw_result["claims"]:
+                conf = f" ({c.get('confidence', 'high')} confidence)" if c.get("confidence") else ""
+                src = f" [Source: {c.get('source')}]" if c.get("source") else ""
+                claims_lines.append(f"- **{c.get('claim')}**{src}{conf}")
+            text_parts.append(f"### Claims & Evidence\n" + "\n".join(claims_lines))
         if raw_result.get("findings"):
             findings_text = "\n".join(f"- {f}" for f in raw_result["findings"])
             text_parts.append(f"### Findings\n{findings_text}")

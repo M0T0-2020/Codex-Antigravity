@@ -114,14 +114,33 @@ def search_models(query: Optional[str] = None, agy_path: Optional[str] = None) -
     ]
 
 
+def resolve_tier_to_model(tier: str, candidates: List[str]) -> Optional[str]:
+    """Map an abstract tier (flash, pro, claude) to the best matching candidate."""
+    t = tier.lower().strip()
+    if t in ("flash", "research", "diagnosis"):
+        matched = [m for m in candidates if "flash" in m.lower()]
+        if matched:
+            return matched[0]
+    elif t in ("pro", "complex_research"):
+        matched = [m for m in candidates if "pro" in m.lower()]
+        if matched:
+            return matched[0]
+    elif t in ("claude", "sonnet"):
+        matched = [m for m in candidates if "claude" in m.lower()]
+        if matched:
+            return matched[0]
+    return None
+
+
 def resolve_model(
     model_name_or_alias: Optional[str],
     config_models: Optional[Dict[str, str]] = None,
     available_models: Optional[List[str]] = None,
 ) -> Optional[str]:
-    """Resolve a logical model alias or tier into a model identifier.
+    """Resolve a logical model alias or tier into a concrete model identifier.
 
-    If None is provided, returns None so `agy` uses its default model.
+    Dynamically queries available models from `agy models` when possible to
+    match tiers (flash, pro, claude) without hardcoded static model strings.
     """
     if not model_name_or_alias:
         return None
@@ -132,15 +151,28 @@ def resolve_model(
     if config_models and target in config_models:
         target = config_models[target]
 
-    # Check built-in aliases
+    # Resolve candidates
+    candidates = available_models
+    if candidates is None:
+        try:
+            candidates = get_available_models(timeout=2)
+        except Exception:
+            candidates = list(FALLBACK_MODELS)
+
+    # If target is a tier keyword, dynamically match against candidates
+    tier_match = resolve_tier_to_model(target, candidates)
+    if tier_match:
+        return tier_match
+
+    # Check built-in static alias fallbacks
     if target in DEFAULT_ALIASES:
         target = DEFAULT_ALIASES[target]
 
-    # If available_models provided, verify or find best prefix match
-    if available_models:
-        if target in available_models:
+    # If concrete target is in candidates or prefix match
+    if candidates:
+        if target in candidates:
             return target
-        for m in available_models:
+        for m in candidates:
             if target.lower() in m.lower():
                 return m
 
