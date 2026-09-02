@@ -1,0 +1,21 @@
+{
+  "name": "codex-antigravity",
+  "version": "1.0.0",
+  "description": "Delegates lightweight, read-only research and documentation lookup tasks to Google Antigravity CLI (agy).",
+  "skills": [
+    "skills/antigravity-research",
+    "skills/research-routing",
+    "skills/test-delegation"
+  ],
+  "agents": [
+    "agents/research-router.md"
+  ],
+  "commands": [
+    "commands/research.md",
+    "commands/research-deep.md",
+    "commands/codebase.md",
+    "commands/test.md"
+  ],
+  "config": "config/defaults.toml",
+  "mcpServers": "./.mcp.json"
+}

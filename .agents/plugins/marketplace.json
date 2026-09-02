@@ -1,0 +1,21 @@
+{
+  "name": "codex-antigravity-market",
+  "interface": {
+    "displayName": "Codex Antigravity Marketplace"
+  },
+  "plugins": [
+    {
+      "name": "codex-antigravity",
+      "version": "1.0.0",
+      "description": "Delegates lightweight, read-only research, documentation lookup, codebase recon, and test failure diagnosis to Google Antigravity CLI (agy).",
+      "source": {
+        "source": "local",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

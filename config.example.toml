@@ -1,0 +1,4 @@
+# Example marketplace registration configuration
+[marketplaces.local-market]
+source_type = "local"
+source = "/path/to/marketplace"

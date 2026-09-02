@@ -1,0 +1,45 @@
+[antigravity]
+enabled = true
+agy_path = "agy"
+default_effort = "low"
+timeout_seconds = 120
+max_parallel = 3
+max_output_chars = 20000
+retry_count = 1
+
+[models]
+research = "gemini-3.8-flash-high"
+complex_research = "gemini-3.8-flash-high"
+diagnosis = "gemini-3.8-flash-high"
+
+[codebase]
+enabled = true
+auto_detect_stack = true
+max_file_tree_depth = 3
+exclude_dirs = [".git", "node_modules", ".venv", "__pycache__", "target", "dist", "build"]
+
+[testing]
+enabled = true
+auto_detect_runner = true
+default_timeout_seconds = 180
+max_failure_lines = 150
+auto_diagnose_on_failure = true
+
+[routing]
+web_research = true
+docs_lookup = true
+github_research = true
+codebase_status = true
+codebase_impact = true
+test_execution = true
+test_failure_diagnosis = true
+code_implementation = false
+architecture = false
+debugging = false
+
+[safety]
+readonly_enforced = true
+disallow_file_writes = true
+disallow_git_write = true
+disallow_package_install = true
+disallow_arbitrary_shell = true
