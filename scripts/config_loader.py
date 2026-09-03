@@ -59,6 +59,18 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "allow_parent_paths": False,
         "allow_absolute_paths": False,
     },
+    "quality_gate": {
+        "enabled": True,
+        "pass_threshold": 0.70,
+        "review_threshold": 0.40,
+    },
+    "budget": {
+        "max_seconds": 60,
+        "max_parallel": 3,
+    },
+    "source_policy": {
+        "mode": "primary_preferred",
+    },
 }
 
 

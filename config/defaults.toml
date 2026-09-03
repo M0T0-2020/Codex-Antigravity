@@ -46,3 +46,16 @@ disallow_arbitrary_shell = true
 allowed_roots = ["."]
 allow_parent_paths = false
 allow_absolute_paths = false
+
+[quality_gate]
+enabled = true
+pass_threshold = 0.70
+review_threshold = 0.40
+
+[budget]
+max_seconds = 60
+max_parallel = 3
+
+[source_policy]
+mode = "primary_preferred"
+

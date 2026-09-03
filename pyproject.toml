@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codex-antigravity"
-version = "1.1.0"
-description = "Lightweight research delegation from Codex CLI to Google Antigravity CLI (agy)"
+version = "1.2.0"
+description = "Manager-style orchestration and research delegation from Codex CLI to Google Antigravity CLI (agy)"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
@@ -21,6 +21,8 @@ antigravity-delegate = "scripts.antigravity_delegate:main"
 check-antigravity = "scripts.check_antigravity:main"
 antigravity-mcp = "mcp.server:main"
 test-runner = "scripts.test_runner:main"
+antigravity-orchestrate = "scripts.orchestrator:main"
+antigravity-router = "scripts.router:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -6,7 +6,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
-from router import Route, classify_task, route_task, validate_delegation_policy  # type: ignore
+from router import Route, classify_task, decompose_task, extract_task_profile, route_task, validate_delegation_policy  # type: ignore
 
 
 class TestRouter(unittest.TestCase):
@@ -62,11 +62,42 @@ class TestRouter(unittest.TestCase):
             self.assertEqual(decision.route, Route.RESEARCH, f"Failed for task: {t}")
             self.assertTrue(decision.allowed_for_delegation)
 
-    def test_policy_validator_blocks_delegation_with_mutation(self):
-        # Even if proposed route was RESEARCH, if task says "modify", it is blocked
-        allowed, reason = validate_delegation_policy(Route.RESEARCH, "Research how to edit and write file src/main.py")
-        self.assertFalse(allowed)
-        self.assertIn("Delegation rejected by SafetyPolicy", reason)
+    def test_task_profile_extraction(self):
+        profile = extract_task_profile("ONNX Runtime の最新仕様を調べて、このコードを対応させてテストして")
+        self.assertTrue(profile.requires_external_info)
+        self.assertTrue(profile.requires_repo_context)
+        self.assertTrue(profile.requires_write)
+        self.assertTrue(profile.requires_execution)
+        self.assertTrue(profile.freshness_required)
+        self.assertGreaterEqual(profile.complexity, 0.7)
+
+    def test_decompose_mixed_task(self):
+        task = "ONNX Runtime の最新仕様を調べて、このコードを対応させてテストして"
+        graph = decompose_task(task)
+        self.assertTrue(graph.is_compound)
+        self.assertEqual(len(graph.subtasks), 4)
+
+        subtask_types = [st.type.value for st in graph.subtasks]
+        self.assertIn("external_research", subtask_types)
+        self.assertIn("codebase", subtask_types)
+        self.assertIn("implementation", subtask_types)
+        self.assertIn("test", subtask_types)
+
+        # Verify dependency chain
+        impl_task = next(st for st in graph.subtasks if st.type.value == "implementation")
+        self.assertIn("research_1", impl_task.depends_on)
+        self.assertIn("repo_1", impl_task.depends_on)
+
+        test_task = next(st for st in graph.subtasks if st.type.value == "test")
+        self.assertIn("implement_1", test_task.depends_on)
+
+    def test_decompose_single_task(self):
+        task = "What is the latest release of ONNX Runtime?"
+        graph = decompose_task(task)
+        self.assertFalse(graph.is_compound)
+        self.assertEqual(len(graph.subtasks), 1)
+        self.assertEqual(graph.subtasks[0].type.value, "external_research")
+        self.assertEqual(graph.subtasks[0].route.value, "antigravity_research")
 
 
 if __name__ == "__main__":

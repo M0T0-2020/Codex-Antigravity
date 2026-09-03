@@ -19,11 +19,13 @@ sys.path.insert(0, os.path.join(BASE_DIR, "scripts"))
 
 from antigravity_delegate import delegate_research  # type: ignore
 from models import search_models  # type: ignore
+from orchestrator import orchestrate_task  # type: ignore
+from router import decompose_task  # type: ignore
 from test_runner import delegate_test_run  # type: ignore
 
 SERVER_INFO = {
     "name": "antigravity-mcp-server",
-    "version": "1.1.0",
+    "version": "1.2.0",
 }
 
 TOOLS = [
@@ -201,6 +203,43 @@ TOOLS = [
             "required": ["error_trace"],
         },
     },
+    {
+        "name": "antigravity_decompose",
+        "description": "Decompose a complex or mixed user task into a structured subtask DAG (TaskGraph) with dependencies and routing allocations.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "User request or task prompt to decompose.",
+                },
+            },
+            "required": ["task"],
+        },
+    },
+    {
+        "name": "antigravity_orchestrate",
+        "description": "Execute full manager orchestration pipeline: decompose task, run parallel information scouts, enforce quality gates, merge evidence with conflict detection, and prepare Codex implementation plan.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "User request to plan, research, and prepare for implementation.",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Target project directory workspace.",
+                    "default": ".",
+                },
+                "context": {
+                    "type": "string",
+                    "description": "Optional background or caller context snippet.",
+                },
+            },
+            "required": ["task"],
+        },
+    },
 ]
 
 
@@ -312,6 +351,23 @@ def call_tool(name: str, arguments: Dict[str, Any], mock: bool = False) -> Dict[
             mock=mock,
         )
 
+    elif name == "antigravity_decompose":
+        task = arguments.get("task", "")
+        graph = decompose_task(task)
+        g_dict = graph.to_dict()
+        g_dict["success"] = True
+        return g_dict
+
+    elif name == "antigravity_orchestrate":
+        task = arguments.get("task", "")
+        path = arguments.get("path", ".")
+        context = arguments.get("context")
+        res = orchestrate_task(task=task, project_dir=path, context=context, mock=mock)
+        r_dict = res.to_dict()
+        r_dict["success"] = True
+        r_dict["markdown_report"] = res.to_markdown()
+        return r_dict
+
     else:
         return {
             "success": False,
@@ -325,8 +381,43 @@ def call_tool(name: str, arguments: Dict[str, Any], mock: bool = False) -> Dict[
 
 
 def format_tool_response(raw_result: Dict[str, Any]) -> Dict[str, Any]:
-    """Format research or test result into standard MCP tool response content."""
+    """Format research, test, or orchestration result into standard MCP tool response content."""
     text_parts = []
+
+    # Check for orchestration result
+    if "markdown_report" in raw_result:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": raw_result["markdown_report"],
+                }
+            ],
+            "isError": not raw_result.get("success", True),
+        }
+
+    # Check for decomposed task graph
+    if "subtasks" in raw_result and "goal" in raw_result:
+        lines = [
+            f"### Task DAG Decomposition: {raw_result.get('goal')}",
+            f"- **Compound Task**: {'YES' if raw_result.get('is_compound') else 'NO'}",
+            f"- **Subtasks**: {len(raw_result.get('subtasks', []))}\n",
+            "#### Subtasks Execution Graph:",
+        ]
+        for st in raw_result.get("subtasks", []):
+            deps = f" *(depends on: {', '.join(st.get('depends_on', []))})*" if st.get("depends_on") else ""
+            parallel = " `[parallel]`" if st.get("parallelizable") else ""
+            lines.append(f"- **[{st.get('id')}]** `{st.get('type')}` → **{st.get('route', '').upper()}**{parallel}{deps}")
+            lines.append(f"  *Query*: {st.get('query')}")
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "\n".join(lines),
+                }
+            ],
+            "isError": not raw_result.get("success", True),
+        }
 
     # Check for test execution results
     if "metrics" in raw_result:

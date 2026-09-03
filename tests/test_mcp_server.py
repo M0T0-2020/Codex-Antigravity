@@ -206,6 +206,45 @@ class TestMCPServer(unittest.TestCase):
         content = res["result"]["content"][0]["text"]
         self.assertIn("Claims & Evidence", content)
 
+    def test_tools_call_decompose(self):
+        req = {
+            "jsonrpc": "2.0",
+            "id": 71,
+            "method": "tools/call",
+            "params": {
+                "name": "antigravity_decompose",
+                "arguments": {
+                    "task": "ONNX Runtime の最新仕様を調べて、このコードを対応させてテストして",
+                },
+            },
+        }
+        res = handle_json_rpc(req, mock=True)
+        self.assertEqual(res["id"], 71)
+        self.assertFalse(res["result"]["isError"])
+        content = res["result"]["content"][0]["text"]
+        self.assertIn("Task DAG Decomposition", content)
+        self.assertIn("Compound Task", content)
+        self.assertIn("YES", content)
+
+    def test_tools_call_orchestrate(self):
+        req = {
+            "jsonrpc": "2.0",
+            "id": 72,
+            "method": "tools/call",
+            "params": {
+                "name": "antigravity_orchestrate",
+                "arguments": {
+                    "task": "ONNX Runtime の最新仕様を調べて、このコードを対応させてテストして",
+                },
+            },
+        }
+        res = handle_json_rpc(req, mock=True)
+        self.assertEqual(res["id"], 72)
+        self.assertFalse(res["result"]["isError"])
+        content = res["result"]["content"][0]["text"]
+        self.assertIn("Orchestration Plan & Evidence", content)
+        self.assertIn("IMPLEMENT_WITH_CODEX", content)
+
     def test_unknown_method(self):
         req = {
             "jsonrpc": "2.0",

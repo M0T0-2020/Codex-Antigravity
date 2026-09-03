@@ -124,6 +124,61 @@ SOURCES:
         self.assertEqual(result["claims"][0]["claim"], "Direct finding without explicit claims block")
         self.assertEqual(result["claims"][0]["source"], "https://example.com/source")
 
+    def test_parse_json_schema_structured_output(self):
+        sample = json.dumps({
+            "structured_output": {
+                "summary": "Direct JSON Schema summary from Antigravity CLI.",
+                "claims": [
+                    {
+                        "claim": "PyTorch 2.3 supports CUDA 12.1 and 12.4",
+                        "source": "https://pytorch.org/get-started/locally/",
+                        "source_type": "official_docs",
+                        "confidence": "high"
+                    },
+                    {
+                        "claim": "TorchDynamo provides substantial inference acceleration",
+                        "source": "https://github.com/pytorch/pytorch",
+                        "source_type": "github_repo",
+                        "confidence": "high"
+                    }
+                ],
+                "findings": ["PyTorch 2.3 supports CUDA 12.1 and 12.4"],
+                "sources": ["https://pytorch.org/get-started/locally/"],
+                "uncertainties": ["Custom CUDA extensions require manual rebuild."]
+            }
+        })
+        result = parse_structured_output(sample)
+        self.assertEqual(result["summary"], "Direct JSON Schema summary from Antigravity CLI.")
+        self.assertEqual(len(result["claims"]), 2)
+        c1 = result["claims"][0]
+        self.assertEqual(c1["claim"], "PyTorch 2.3 supports CUDA 12.1 and 12.4")
+        self.assertEqual(c1["verification_status"], "source_retrieved")
+        self.assertEqual(c1["self_confidence"], "high")
+        self.assertTrue(c1["verified"])
+        self.assertEqual(c1["evidence"]["type"], "official_docs")
+
+    def test_verification_status_levels(self):
+        sample = """SUMMARY:
+Verification test.
+
+CLAIMS:
+- Claim: Official doc statement
+  Source: https://docs.python.org/3/library/json.html
+  Confidence: high
+- Claim: Random web article statement
+  Source: https://medium.com/some-post
+  Confidence: medium
+- Claim: Unverified assumption statement
+  Source:
+  Confidence: low
+"""
+        result = parse_structured_output(sample)
+        claims = result["claims"]
+        self.assertEqual(len(claims), 3)
+        self.assertEqual(claims[0]["verification_status"], "source_retrieved")
+        self.assertEqual(claims[1]["verification_status"], "source_provided")
+        self.assertEqual(claims[2]["verification_status"], "unverified")
+
 
 if __name__ == "__main__":
     unittest.main()

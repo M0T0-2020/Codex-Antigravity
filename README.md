@@ -32,6 +32,11 @@ Coding Agent (Codex)
 
 ## Key Features
 
+- 🧠 **Manager-Style Agent Orchestrator (v1.2)**:
+  - Automatically decomposes compound/mixed user tasks into a bounded subtask DAG (TaskGraph) (`decompose_task`).
+  - Dispatches external research and codebase reconnaissance concurrently, evaluated by an objective **Quality Gate** (primary source ratio, confidence, and uncertainty penalties).
+  - Synthesizes findings across agents using **Evidence Merger**, automatically detecting factual contradictions and version discrepancies (Conflict Detection).
+  - Emits a clean implementation packet for Codex Native with automated follow-up test execution (`antigravity-orchestrate`).
 - 🚀 **Optimal Division of Responsibilities for Coding Agents**:
   - **Codex (Lead Engineer)**: Production code modifications, refactoring, Git commits, and final architectural decisions.
   - **Antigravity (Scout & QA)**: Codebase structure exploration, dependency/impact analysis, test execution & failure triage, and external documentation lookup.
@@ -40,15 +45,18 @@ Coding Agent (Codex)
 - 🧪 **Test Delegation & AI Failure Triage**:
   - Automatically detects and runs pytest, unittest, cargo test, npm/vitest, go test, and more.
   - When tests fail, instead of flooding the Coding Agent's context window with massive stack traces, AI provides structured root cause analysis and concrete suggested fixes.
-- 🛡️ **Strict Read-Only Safety Guarantees**:
+- 📋 **Official `--json-schema` & Verification Status**:
+  - Uses `schemas/research_result.json` to obtain guaranteed structured output directly from Antigravity CLI.
+  - Replaced naive `verified: true` flags with granular `verification_status` (`source_retrieved`, `source_provided`, `unverified`, `contradicted`).
+- 🛡️ **Strict Read-Only Safety Guarantees & Policy-as-Code**:
   - Research and scout tasks strictly prohibit file modifications and Git write operations via prompt-level guardrails and CLI parameter enforcement.
 - ⚡ **Zero External Dependencies**:
   - Fully functional using only the Python 3.9+ standard library.
 - 📦 **Rich Integration Options**:
-  - **CLI Scripts**: `scripts/antigravity_delegate.py`, `scripts/test_runner.py`
+  - **CLI Scripts**: `scripts/orchestrator.py`, `scripts/router.py`, `scripts/antigravity_delegate.py`, `scripts/test_runner.py`
   - **Codex Plugin / Skills**: `skills/antigravity-research`, `skills/research-routing`, `skills/test-delegation`
   - **Slash Commands**: `/codebase`, `/test`, `/research`, `/research-deep`
-  - **MCP Server**: `mcp/server.py` (JSON-RPC 2.0 stdio)
+  - **MCP Server**: `mcp/server.py` (`antigravity_orchestrate`, `antigravity_decompose`, `antigravity_research`, etc.)
 
 ---
 

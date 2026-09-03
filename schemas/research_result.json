@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ResearchResult",
+  "description": "Schema for structured research and fact-gathering results from Antigravity CLI",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Concise 1-3 sentence summary of the findings"
+    },
+    "claims": {
+      "type": "array",
+      "description": "Atomic factual assertions with exact source citations and confidence rating",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string",
+            "description": "Specific factual finding or assertion"
+          },
+          "source": {
+            "type": "string",
+            "description": "Exact URL, file path, repository link, or official documentation reference"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": ["official_docs", "github_repo", "release_notes", "issue_discussion", "local_code", "web", "inferred"],
+            "description": "Category of the backing evidence"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Model self-confidence level"
+          }
+        },
+        "required": ["claim", "source", "confidence"]
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Key synthesized takeaways"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of URLs or reference documents cited"
+    },
+    "uncertainties": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Caveats, version discrepancies, or unknowns"
+    }
+  },
+  "required": ["summary", "claims", "findings", "sources", "uncertainties"]
+}

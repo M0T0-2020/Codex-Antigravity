@@ -125,8 +125,26 @@ def build_research_prompt(
     ).strip()
 
 
+def _determine_verification(source_ref: str) -> Tuple[str, str]:
+    """Determine verification status and evidence type for a source reference."""
+    if not source_ref or source_ref.strip() in ("", "primary source"):
+        return "unverified", "inferred"
+    src_lower = source_ref.lower().strip()
+    if src_lower.startswith(("http://", "https://")):
+        official_domains = [
+            "docs.", "github.com", "microsoft.com", "pytorch.org", "python.org",
+            "crates.io", "rust-lang.org", "developer.", "support.", "api.", "kernel.org"
+        ]
+        if any(dom in src_lower for dom in official_domains):
+            return "source_retrieved", "official_docs"
+        return "source_provided", "web"
+    if os.path.exists(source_ref) or "/" in source_ref or "." in source_ref:
+        return "source_retrieved", "local_code"
+    return "source_provided", "inferred"
+
+
 def _extract_claims(claims_content: str, findings: List[str], sources: List[str]) -> List[Dict[str, Any]]:
-    """Parse claims section into structured claim objects with sources and confidence."""
+    """Parse claims section into structured claim objects with sources, self_confidence, and verification_status."""
     claims: List[Dict[str, Any]] = []
 
     if claims_content.strip():
@@ -140,9 +158,9 @@ def _extract_claims(claims_content: str, findings: List[str], sources: List[str]
             source_ref = ""
             confidence = "high"
 
-            c_m = re.search(r"(?:^|\n)\s*(?:[-*•]\s*)?(?:Claim:)?\s*(.*?)(?=\n\s*(?:Source|Confidence)|\Z)", block, re.IGNORECASE)
-            s_m = re.search(r"(?:Source|URL|Ref):\s*(.*?)(?=\n\s*(?:Confidence|Claim)|\Z)", block, re.IGNORECASE)
-            conf_m = re.search(r"Confidence:\s*([a-zA-Z0-9.]+)", block, re.IGNORECASE)
+            c_m = re.search(r"(?:^|\n)[ \t]*(?:[-*•][ \t]*)?(?:Claim:)?[ \t]*([^\r\n]*)", block, re.IGNORECASE)
+            s_m = re.search(r"(?:Source|URL|Ref):[ \t]*([^\r\n]*)", block, re.IGNORECASE)
+            conf_m = re.search(r"Confidence:[ \t]*([a-zA-Z0-9.]+)", block, re.IGNORECASE)
 
             if c_m:
                 claim_text = c_m.group(1).strip()
@@ -160,22 +178,36 @@ def _extract_claims(claims_content: str, findings: List[str], sources: List[str]
                     claim_text = (claim_text[:inline_s.start()] + claim_text[inline_s.end():]).strip()
 
             if claim_text:
-                verified = (confidence in ("high", "0.9", "0.95", "1.0", "true") or source_ref.startswith("http"))
+                status, ev_type = _determine_verification(source_ref)
+                verified = (status in ("source_provided", "source_retrieved", "cross_checked"))
                 claims.append({
                     "claim": claim_text,
                     "source": source_ref or (sources[0] if sources else "primary source"),
-                    "confidence": confidence,
-                    "verified": verified,
+                    "self_confidence": confidence,
+                    "confidence": confidence,  # backward compatibility
+                    "evidence": {
+                        "source": source_ref,
+                        "type": ev_type,
+                    },
+                    "verification_status": status,
+                    "verified": verified,  # backward compatibility
                 })
 
     # If no explicit claims section, synthesize from findings and sources
     if not claims and findings:
         for idx, f in enumerate(findings):
             src = sources[idx] if idx < len(sources) else (sources[0] if sources else "")
+            status, ev_type = _determine_verification(src)
             claims.append({
                 "claim": f,
                 "source": src or "primary source",
+                "self_confidence": "high" if src else "medium",
                 "confidence": "high" if src else "medium",
+                "evidence": {
+                    "source": src,
+                    "type": ev_type,
+                },
+                "verification_status": status,
                 "verified": bool(src),
             })
 
@@ -183,7 +215,7 @@ def _extract_claims(claims_content: str, findings: List[str], sources: List[str]
 
 
 def parse_structured_output(raw_text: str, max_chars: int = 20000) -> Dict[str, Any]:
-    """Extract SUMMARY, CLAIMS, FINDINGS, SOURCES, and UNCERTAINTIES sections from text."""
+    """Extract SUMMARY, CLAIMS, FINDINGS, SOURCES, and UNCERTAINTIES sections from text or JSON-schema structured output."""
     if len(raw_text) > max_chars:
         raw_text = raw_text[:max_chars] + "\n... [Output truncated at max_output_chars limit]"
 
@@ -191,6 +223,41 @@ def parse_structured_output(raw_text: str, max_chars: int = 20000) -> Dict[str, 
     try:
         data = json.loads(raw_text)
         if isinstance(data, dict):
+            # Check for direct schema-based structured output from --json-schema
+            schema_data = None
+            if "structured_output" in data and isinstance(data["structured_output"], dict):
+                schema_data = data["structured_output"]
+            elif "claims" in data and "summary" in data:
+                schema_data = data
+
+            if schema_data:
+                claims = []
+                for c in schema_data.get("claims", []):
+                    if isinstance(c, dict):
+                        src = c.get("source", "")
+                        status, ev_type = _determine_verification(src)
+                        conf = str(c.get("confidence", "high")).lower()
+                        claims.append({
+                            "claim": c.get("claim", ""),
+                            "source": src,
+                            "self_confidence": conf,
+                            "confidence": conf,
+                            "evidence": {
+                                "source": src,
+                                "type": c.get("source_type", ev_type),
+                            },
+                            "verification_status": status,
+                            "verified": bool(src),
+                        })
+                return {
+                    "summary": schema_data.get("summary", ""),
+                    "claims": claims,
+                    "findings": schema_data.get("findings", []),
+                    "sources": schema_data.get("sources", []),
+                    "uncertainties": schema_data.get("uncertainties", []),
+                    "raw_text": raw_text,
+                }
+
             if "response" in data and isinstance(data["response"], str):
                 extracted_text = data["response"]
             elif "content" in data and isinstance(data["content"], str):
@@ -279,6 +346,20 @@ def _extract_bullet_points(content: str) -> List[str]:
     return items
 
 
+def find_schema_path(custom_path: Optional[str] = None) -> Optional[str]:
+    """Locate the research result JSON schema."""
+    if custom_path and os.path.exists(custom_path):
+        return custom_path
+    candidates = [
+        os.path.join(os.getcwd(), "schemas", "research_result.json"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "schemas", "research_result.json"),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return None
+
+
 def execute_agy_cli(
     prompt: str,
     agy_path: str,
@@ -288,6 +369,7 @@ def execute_agy_cli(
     sandbox: bool = False,
     project_dir: Optional[str] = None,
     safety_policy: Optional[SafetyPolicy] = None,
+    json_schema: Optional[str] = None,
 ) -> Tuple[bool, str, str, int]:
     """Execute the agy command in a subprocess with safety policy and process-tree cleanup.
 
@@ -301,6 +383,9 @@ def execute_agy_cli(
         "-p", prompt,
         "--output-format", "json",
     ]
+
+    if json_schema and os.path.isfile(json_schema):
+        cmd.extend(["--json-schema", json_schema])
 
     if project_dir:
         try:
@@ -563,6 +648,8 @@ def delegate_research(
     last_error = ""
     stdout_result = ""
 
+    schema_file = find_schema_path()
+
     for attempt in range(retry_limit + 1):
         success, stdout, stderr, code = execute_agy_cli(
             prompt=prompt,
@@ -573,6 +660,7 @@ def delegate_research(
             sandbox=sandbox,
             project_dir=resolved_project_dir,
             safety_policy=policy,
+            json_schema=schema_file,
         )
 
         if success and stdout.strip():

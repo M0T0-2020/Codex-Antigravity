@@ -32,6 +32,11 @@ Coding Agent (Codex)
 
 ## 主な特徴
 
+- 🧠 **Manager型エージェント・オーケストレーター (v1.2)**:
+  - ユーザーの複合タスク（例:「最新仕様を調べてコードを対応させてテストして」）を、依存関係付き DAG（Task Graph）に自動分解 (`decompose_task`)。
+  - 外部調査・コードベース調査を並列で実行し、**Quality Gate** による客観的品質評価（一次ソース比率・不確実性ペナルティ等）を実施。
+  - 複数エージェントの結果を **Evidence Merger** で統合し、バージョン不一致や極性矛盾などの競合 (Conflict) を自動検出。
+  - 実装は Codex Native、テストは Test Delegator に委譲する完全自律フローを提供 (`antigravity-orchestrate`)。
 - 🚀 **Coding Agent 向け責務の最適分離**:
   - **Codex (Lead Engineer)**: 実装コードの編集、リファクタリング、Gitコミット、最終設計判断。
   - **Antigravity (Scout & QA)**: コードベース構造調査、依存/影響分析、テスト実行＆失敗トリアージ、外部ドキュメント検索。
@@ -40,15 +45,18 @@ Coding Agent (Codex)
 - 🧪 **テスト委任＆AI障害トリアージ (Test Delegation & Failure Triage)**:
   - pytest, unittest, cargo test, npm/vitest, go test などを自動検知・実行。
   - テスト失敗時は膨大なスタックトレースをCoding Agentのコンテキストに垂れ流さず、AIが根本原因（Root Cause）と具体的な修正指針（Suggested Fix）を構造化報告。
-- 🛡️ **安全な読み取り専用制約**:
+- 📋 **公式 `--json-schema` & Evidence 検証ステータス**:
+  - `schemas/research_result.json` により Antigravity CLI から信頼性の高い構造化出力を取得。
+  - 安易な `verified: true` を廃止し、`verification_status` (`source_retrieved`, `source_provided`, `unverified`, `contradicted`) に分離。
+- 🛡️ **安全な読み取り専用制約 & Policy-as-Code**:
   - 調査・スカウトタスクではプロンプトレベルおよび引数レベルでファイル変更やGit書き込みを厳格に禁止。
 - ⚡ **ゼロ外部依存 (Zero-dependency)**:
   - Python 3.9+ の標準ライブラリのみで完全動作。
 - 📦 **豊富な連携方式**:
-  - **CLI スクリプト**: `scripts/antigravity_delegate.py`, `scripts/test_runner.py`
+  - **CLI スクリプト**: `scripts/orchestrator.py`, `scripts/router.py`, `scripts/antigravity_delegate.py`, `scripts/test_runner.py`
   - **Codex Plugin / Skills**: `skills/antigravity-research`, `skills/research-routing`, `skills/test-delegation`
   - **Slash Commands**: `/codebase`, `/test`, `/research`, `/research-deep`
-  - **MCP サーバー**: `mcp/server.py` (JSON-RPC 2.0 stdio)
+  - **MCP サーバー**: `mcp/server.py` (`antigravity_orchestrate`, `antigravity_decompose`, `antigravity_research`, etc.)
 
 ---
 
