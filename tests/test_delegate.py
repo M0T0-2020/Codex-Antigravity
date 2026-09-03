@@ -107,5 +107,36 @@ class TestDelegate(unittest.TestCase):
         self.assertIn("audit completed", result["summary"])
 
 
+    def test_build_research_prompt_english_by_default(self):
+        prompt = build_research_prompt("Unityのポータル遷移を調査", task_type="research")
+        self.assertIn("strictly in English", prompt)
+        self.assertIn("exclusively in English", prompt)
+        self.assertIn("Output Language:", prompt)
+
+    def test_build_research_prompt_japanese_explicit(self):
+        prompt = build_research_prompt("Unityのポータル遷移を調査", task_type="research", language="ja")
+        self.assertIn("すべての回答（サマリー、クレーム、調査結果、不確実性）は日本語で記述してください", prompt)
+        self.assertIn("すべての出力セクションを日本語で生成してください", prompt)
+
+    def test_delegate_research_with_language(self):
+        result = delegate_research(
+            task="Research Unity 6 portals",
+            task_type="research",
+            language="en",
+            mock=True,
+        )
+        self.assertTrue(result["success"])
+        self.assertIsNotNone(result["summary"])
+
+    def test_delegate_parallel_with_language(self):
+        result = delegate_parallel(
+            tasks=["Research task 1", "Research task 2"],
+            language="en",
+            mock=True,
+        )
+        self.assertTrue(result["success"])
+        self.assertEqual(result["subtasks_count"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

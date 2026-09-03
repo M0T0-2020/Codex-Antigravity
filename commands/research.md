@@ -15,7 +15,7 @@ Triggers Antigravity CLI delegation in `low` effort mode to quickly scout docume
 ## Workflow
 
 1. Take the user's query after `/research`.
-2. Execute:
+2. Execute (by default, output is formulated in English; pass `--lang ja` if Japanese is specifically requested):
    ```bash
    python3 scripts/antigravity_delegate.py --task "<query>" --type research --effort low
    ```

@@ -582,6 +582,7 @@ timeout_seconds = 120
 max_parallel = 3
 max_output_chars = 20000
 retry_count = 1
+output_language = "en"    # Output language for research ("en" by default, or "ja")
 
 [models]
 research = "flash"

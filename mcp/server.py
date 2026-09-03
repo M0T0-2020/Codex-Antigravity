@@ -53,6 +53,11 @@ TOOLS = [
                     "type": "string",
                     "description": "Optional minimal context snippet to assist investigation.",
                 },
+                "language": {
+                    "type": "string",
+                    "default": "en",
+                    "description": "Output language for research findings (default: 'en').",
+                },
             },
             "required": ["query"],
         },
@@ -236,6 +241,11 @@ TOOLS = [
                     "type": "string",
                     "description": "Optional background or caller context snippet.",
                 },
+                "language": {
+                    "type": "string",
+                    "default": "en",
+                    "description": "Output language for research findings (default: 'en').",
+                },
             },
             "required": ["task"],
         },
@@ -251,12 +261,14 @@ def call_tool(name: str, arguments: Dict[str, Any], mock: bool = False) -> Dict[
         effort = "low" if depth == "quick" else "medium"
         model = arguments.get("model")
         context = arguments.get("context")
+        language = arguments.get("language")
         return delegate_research(
             task=query,
             task_type="research",
             effort=effort,
             model=model,
             context=context,
+            language=language,
             mock=mock,
         )
 
@@ -362,7 +374,8 @@ def call_tool(name: str, arguments: Dict[str, Any], mock: bool = False) -> Dict[
         task = arguments.get("task", "")
         path = arguments.get("path", ".")
         context = arguments.get("context")
-        res = orchestrate_task(task=task, project_dir=path, context=context, mock=mock)
+        language = arguments.get("language")
+        res = orchestrate_task(task=task, project_dir=path, context=context, language=language, mock=mock)
         r_dict = res.to_dict()
         r_dict["success"] = True
         r_dict["markdown_report"] = res.to_markdown()

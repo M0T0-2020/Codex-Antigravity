@@ -82,6 +82,7 @@ def orchestrate_task(
     task: str,
     project_dir: Optional[str] = None,
     context: Optional[str] = None,
+    language: Optional[str] = None,
     config_path: Optional[str] = None,
     mock: bool = False,
 ) -> OrchestrationResult:
@@ -90,6 +91,7 @@ def orchestrate_task(
     cfg = load_config(config_path)
     budget = cfg.get("budget", {})
     max_workers = min(int(budget.get("max_parallel", 3)), int(cfg.get("antigravity", {}).get("max_parallel", 3)))
+    output_lang = language or cfg.get("antigravity", {}).get("output_language", "en")
 
     # Step 1: Decompose task into DAG
     graph = decompose_task(task, config=cfg)
@@ -122,6 +124,7 @@ def orchestrate_task(
             model=subtask.model_tier,
             context=context,
             project_dir=project_dir,
+            language=output_lang,
             mock=mock,
         )
         res["task"] = subtask.id
@@ -188,6 +191,7 @@ def main():
     parser.add_argument("--task", type=str, required=True, help="User request or inquiry")
     parser.add_argument("--dir", type=str, default=None, help="Target project workspace")
     parser.add_argument("--context", type=str, default=None, help="Caller context")
+    parser.add_argument("--lang", "--language", type=str, default=None, help="Output language (default: 'en')")
     parser.add_argument("--config", type=str, default=None, help="Config path")
     parser.add_argument("--mock", action="store_true", default=False, help="Run in mock mode")
     parser.add_argument("--json", action="store_true", default=False, help="Output JSON packet")
@@ -198,6 +202,7 @@ def main():
         task=args.task,
         project_dir=args.dir,
         context=args.context,
+        language=args.lang,
         config_path=args.config,
         mock=args.mock,
     )

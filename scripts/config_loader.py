@@ -18,6 +18,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "max_parallel": 3,
         "max_output_chars": 20000,
         "retry_count": 1,
+        "output_language": "en",
     },
     "models": {
         "research": "flash",

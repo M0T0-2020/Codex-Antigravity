@@ -20,8 +20,9 @@ Triggers the full Codex-Antigravity v1.2 orchestration pipeline:
 ## Workflow
 
 1. Take the user's request.
-2. Execute:
+2. Execute (by default, research findings and evidence are generated in English for optimal Codex reasoning):
    ```bash
    python3 scripts/orchestrator.py --task "<request>" --markdown
    ```
+   *(Optional: pass `--lang ja` if the user explicitly requested Japanese output)*
 3. Codex ingests the verified claims and findings, proceeds with implementation, and runs tests.

@@ -32,6 +32,10 @@ class TestOrchestrator(unittest.TestCase):
         task = "What is the capital of France?"
         result = orchestrate_task(task=task, mock=True)
         self.assertFalse(result.graph.is_compound)
+    def test_orchestrate_with_language_parameter(self):
+        task = "Research Unity portal transition best practices and documentation"
+        result = orchestrate_task(task=task, language="en", mock=True)
+        self.assertIsNotNone(result)
         self.assertIsNotNone(result.evidence)
 
 
